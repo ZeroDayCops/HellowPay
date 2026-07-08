@@ -1,0 +1,42 @@
+/* Auth Layout Styles */
+
+.authContainer {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--background);
+}
+
+.authHeader {
+  padding: var(--space-6) var(--space-8);
+}
+
+.logoLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.logoImage {
+  border-radius: var(--radius-sm);
+}
+
+.logoText {
+  font-size: var(--text-md);
+  font-weight: var(--font-semibold);
+  color: var(--foreground);
+}
+
+.authContent {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
+.authFooter {
+  padding: var(--space-6) var(--space-8);
+  text-align: center;
+  border-top: 1px solid var(--border);
+}

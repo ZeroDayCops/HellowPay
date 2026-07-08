@@ -1,0 +1,55 @@
+/* Admin Overview Page Styles */
+
+.overview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.pageHeader {
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+}
+
+@media (max-width: 1023px) {
+  .metricsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .metricsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.metricValue {
+  font-size: var(--text-3xl);
+  font-weight: var(--font-bold);
+  color: var(--primary);
+  margin-top: var(--space-2);
+}
+
+.adminSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.taskCards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+
+@media (max-width: 1023px) {
+  .taskCards {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,66 @@
+/* Dashboard Overview Page */
+
+.overview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.pageHeader {
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+}
+
+@media (max-width: 1023px) {
+  .metricsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .metricsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.metricValue {
+  font-size: var(--text-3xl);
+  font-weight: var(--font-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+  margin-top: var(--space-2);
+}
+
+.metricValueGreen {
+  composes: metricValue;
+  color: var(--success-foreground);
+}
+
+.quickActions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.actionCards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+
+@media (max-width: 1023px) {
+  .actionCards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.recentSection {
+  display: flex;
+  flex-direction: column;
+}
