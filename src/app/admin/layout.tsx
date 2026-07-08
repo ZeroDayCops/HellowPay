@@ -15,6 +15,7 @@ const adminNavItems = [
   { label: 'Overview', href: '/admin', icon: '⬡' },
   { label: 'Merchants', href: '/admin/merchants', icon: '🏢' },
   { label: 'Live Applications', href: '/admin/live-mode', icon: '⚡' },
+  { label: 'Feature Flags', href: '/admin/feature-flags', icon: '⚙️' },
   { label: 'Risk & Safety', href: '/admin/risk', icon: '⚠' },
   { label: 'Audit Trail', href: '/admin/audit', icon: '📝' },
 ];

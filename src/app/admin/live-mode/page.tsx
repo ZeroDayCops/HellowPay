@@ -36,6 +36,59 @@ export default function AdminLiveApplicationsPage() {
   const [reviewReason, setReviewReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Administrative Notes Timeline State
+  const [notes, setNotes] = useState<any[]>([]);
+  const [newNoteContent, setNewNoteContent] = useState('');
+  const [loadingNotes, setLoadingNotes] = useState(false);
+  const [addingNote, setAddingNote] = useState(false);
+
+  // Fetch annotations timeline for selected application
+  const fetchNotes = async (appId: number) => {
+    setLoadingNotes(true);
+    try {
+      const res = await fetch(`/api/admin/live-applications/${appId}/notes`);
+      const json = await res.json();
+      if (res.ok) {
+        setNotes(json.notes || []);
+      }
+    } catch (err) {
+      console.error('Failed to load notes:', err);
+    } finally {
+      setLoadingNotes(false);
+    }
+  };
+
+  // Submit new annotation note
+  const handleAddNote = async (appId: number) => {
+    if (!newNoteContent.trim()) return;
+    setAddingNote(true);
+    try {
+      const res = await fetch(`/api/admin/live-applications/${appId}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newNoteContent.trim() }),
+      });
+      if (res.ok) {
+        setNewNoteContent('');
+        fetchNotes(appId);
+      }
+    } catch (err) {
+      console.error('Failed to save note:', err);
+    } finally {
+      setAddingNote(false);
+    }
+  };
+
+  // Load notes on detail modal mount
+  useEffect(() => {
+    if (selectedApp) {
+      fetchNotes(selectedApp.applicationId);
+    } else {
+      setNotes([]);
+      setNewNoteContent('');
+    }
+  }, [selectedApp]);
+
   const fetchApplications = async () => {
     setLoading(true);
     setErrorMessage(null);
@@ -285,6 +338,49 @@ export default function AdminLiveApplicationsPage() {
                 onChange={(e) => setReviewReason(e.target.value)}
                 disabled={submitting}
               />
+            </div>
+
+            {/* Internal Audit Annotations Timeline */}
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginBottom: 16 }}>
+              <span className="body-xs font-semibold" style={{ display: 'block', marginBottom: 8, color: 'var(--foreground-muted)' }}>
+                🛡️ Internal Admin Notes ({notes.length})
+              </span>
+
+              {notes.length > 0 && (
+                <div style={{ maxHeight: 120, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12, paddingRight: 4 }}>
+                  {notes.map((n) => (
+                    <div key={n.id} style={{ background: 'var(--surface-subtle)', padding: 8, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                      <p className="caption font-semibold" style={{ color: 'var(--foreground)' }}>{n.content}</p>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: '0.65rem', color: 'var(--foreground-muted)' }}>
+                        <span>By {n.authorName || n.authorEmail}</span>
+                        <span>{new Date(n.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  type="text"
+                  placeholder="Add compliance notes or observation logs..."
+                  style={{
+                    flex: 1,
+                    padding: '6px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface)',
+                    color: 'var(--foreground)',
+                    fontSize: '0.8rem',
+                  }}
+                  value={newNoteContent}
+                  onChange={(e) => setNewNoteContent(e.target.value)}
+                  disabled={addingNote}
+                />
+                <Button size="sm" onClick={() => handleAddNote(selectedApp.applicationId)} disabled={addingNote || !newNoteContent.trim()}>
+                  {addingNote ? 'Saving...' : 'Add Note'}
+                </Button>
+              </div>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>

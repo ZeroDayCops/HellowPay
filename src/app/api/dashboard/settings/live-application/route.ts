@@ -19,6 +19,7 @@ import {
 import { eq, and, desc } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { sendFounderNotification } from '@/lib/services/notification.service';
+import { checkFeatureFlag } from '@/lib/services/feature-flag.service';
 
 export async function GET(req: NextRequest) {
   const { userId: clerkUserId } = await auth();
@@ -158,14 +159,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Check if Live Mode self service feature flag is enabled
+    const selfServiceEnabled = await checkFeatureFlag('live_mode_self_service', 'project', project.publicId);
+
+    const appStatusVal = selfServiceEnabled ? 'approved' : 'pending_review';
+    const reviewReasonVal = selfServiceEnabled ? 'Auto-approved by self-service feature flag rule' : null;
+    const reviewedAtVal = selfServiceEnabled ? new Date() : null;
+
     // 3. Create a new Live Mode Application
     const [newApp] = await db
       .insert(liveModeApplications)
       .values({
         projectId: project.id,
-        status: 'pending_review',
+        status: appStatusVal,
         requestedAt: new Date(),
         requestedBy: profile[0].id,
+        reviewReason: reviewReasonVal,
+        reviewedAt: reviewedAtVal,
       })
       .returning();
 
@@ -180,15 +190,18 @@ export async function POST(req: NextRequest) {
       metadata: {
         applicationId: newApp.id,
         projectName: project.name,
+        autoApproved: selfServiceEnabled,
       },
     });
 
-    await sendFounderNotification(
-      'live_mode.requested',
-      'New Live Mode Application',
-      `Merchant "${biz[0].name}" has requested Live Mode activation for project "${project.name}".`,
-      '/admin/live-mode'
-    );
+    if (!selfServiceEnabled) {
+      await sendFounderNotification(
+        'live_mode.requested',
+        'New Live Mode Application',
+        `Merchant "${biz[0].name}" has requested Live Mode activation for project "${project.name}".`,
+        '/admin/live-mode'
+      );
+    }
 
     return NextResponse.json({ success: true, application: newApp });
   } catch (error: unknown) {
