@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { submitOnboarding } from './actions';
-import { Button, Input, Card } from '@/components/ui';
+import { Button, Input, Card, Badge } from '@/components/ui';
 import styles from './page.module.css';
 
 const steps = [
@@ -21,6 +21,10 @@ export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Invitations State
+  const [invites, setInvites] = useState<any[]>([]);
+  const [checkingInvites, setCheckingInvites] = useState(true);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -45,6 +49,49 @@ export default function OnboardingPage() {
   });
   const [copiedPub, setCopiedPub] = useState(false);
   const [copiedSec, setCopiedSec] = useState(false);
+
+  // Check pending invitations matching current user email
+  useEffect(() => {
+    async function checkInvitations() {
+      try {
+        const res = await fetch('/api/dashboard/onboarding/invitations');
+        const json = await res.json();
+        if (res.ok && json.invitations) {
+          setInvites(json.invitations);
+        }
+      } catch (err) {
+        console.error('Failed to query invitations:', err);
+      } finally {
+        setCheckingInvites(false);
+      }
+    }
+    checkInvitations();
+  }, []);
+
+  // Accept Invite handler
+  const handleAcceptInvite = async (inviteId: number) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/dashboard/onboarding/invitations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inviteId }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        // Redirect directly to dashboard on successful join!
+        router.push('/dashboard');
+      } else {
+        setError(json.error || 'Failed to accept invitation.');
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error('Failed to accept invitation:', err);
+      setError('Connection failure. Please try again.');
+      setLoading(false);
+    }
+  };
 
   const updateField = (field: string, value: string) => {
     setFormData((prev) => {
@@ -122,6 +169,79 @@ export default function OnboardingPage() {
       setTimeout(() => setCopiedSec(false), 2000);
     }
   };
+
+  if (checkingInvites) {
+    return (
+      <div className={styles.container}>
+        <Card className={styles.card}>
+          <div className={styles.loadingState}>
+            <div className={styles.spinner}></div>
+            <p className="body-sm text-muted-foreground mt-3">Checking for pending workspace invitations…</p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (invites.length > 0) {
+    return (
+      <div className={styles.container}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <span style={{ fontSize: '3.5rem' }}>👋</span>
+          <h1 className="h2 mt-2">Welcome to HollowPay</h1>
+          <p className="body-sm mt-1 text-muted-foreground">
+            You have been invited to join an existing workspace. Accept below to bypass onboarding.
+          </p>
+        </div>
+
+        <Card className={styles.card}>
+          {error && (
+            <div className={styles.errorAlert} style={{ marginBottom: 16 }}>
+              <span>⚠️ {error}</span>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {invites.map((invite) => (
+              <div
+                key={invite.id}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: 16,
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--surface-subtle)',
+                }}
+              >
+                <div>
+                  <h3 className="body-sm font-semibold">Join &ldquo;{invite.workspaceName}&rdquo;</h3>
+                  <p className="caption text-muted-foreground mt-1">
+                    Role: <Badge variant="default">{invite.role.toUpperCase()}</Badge>
+                  </p>
+                </div>
+                <Button onClick={() => handleAcceptInvite(invite.id)} disabled={loading}>
+                  {loading ? 'Joining…' : 'Accept & Join'}
+                </Button>
+              </div>
+            ))}
+
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 8, textAlign: 'center' }}>
+              <span className="caption text-muted-foreground">
+                Or, if you want to create a brand new workspace instead:
+              </span>
+              <div style={{ marginTop: 12 }}>
+                <Button variant="secondary" onClick={() => setInvites([])} disabled={loading}>
+                  Create New Workspace
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>
