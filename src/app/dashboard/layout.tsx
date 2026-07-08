@@ -8,6 +8,7 @@ import { EnvironmentProvider } from '@/lib/contexts/environment-context';
 import { EnvironmentSelector } from '@/components/dashboard/environment-selector';
 import { DynamicEnvironmentBadge } from '@/components/dashboard/dynamic-badge';
 import { MobileNav } from '@/components/dashboard/mobile-nav';
+import { NotificationBell } from '@/components/dashboard/notification-bell';
 
 export const metadata: Metadata = {
   title: {
@@ -30,6 +31,7 @@ const devItems = [
   { label: 'API Keys', href: '/dashboard/developers/api-keys', icon: '🔑' },
   { label: 'Webhooks', href: '/dashboard/developers/webhooks', icon: '🔗' },
   { label: 'API Logs', href: '/dashboard/developers/api-logs', icon: '📝' },
+  { label: 'Audit Logs', href: '/dashboard/developers/audit-logs', icon: '🛡️' },
   { label: 'Documentation', href: '/docs', icon: '📖' },
 ];
 
@@ -129,7 +131,8 @@ export default function DashboardLayout({
             <div className={styles.topBarLeft}>
               <MobileNav />
             </div>
-            <div className={styles.topBarRight}>
+            <div className={styles.topBarRight} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <NotificationBell />
               <DynamicEnvironmentBadge />
             </div>
           </header>

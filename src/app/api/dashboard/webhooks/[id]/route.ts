@@ -10,6 +10,7 @@ import { db } from '@/lib/db';
 import { userProfiles, workspaceMembers, businesses, projects } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { revokeWebhookEndpoint } from '@/lib/services/webhook-delivery.service';
+import { createAuditLog } from '@/lib/services/audit.service';
 
 export async function DELETE(
   req: NextRequest,
@@ -69,6 +70,17 @@ export async function DELETE(
 
     // 2. Execute soft delete revocation
     await revokeWebhookEndpoint(projectId, publicId);
+
+    await createAuditLog({
+      action: 'webhook_endpoint_deleted',
+      targetType: 'webhook_endpoint',
+      targetId: publicId,
+      workspaceId: membership[0].workspaceId,
+      userId: profile[0].id,
+      metadata: {
+        publicId,
+      },
+    });
 
     return NextResponse.json({ success: true, message: 'Webhook endpoint deleted.' });
   } catch (error: unknown) {

@@ -11,6 +11,7 @@ import { db } from '@/lib/db';
 import { userProfiles, workspaceMembers, businesses, projects, apiKeys } from '@/lib/db/schema';
 import { eq, and, isNull, desc } from 'drizzle-orm';
 import { generateApiKey } from '@/lib/crypto/api-key-generator';
+import { sendMerchantNotification } from '@/lib/services/notification.service';
 
 export async function GET(req: NextRequest) {
   const { userId: clerkUserId } = await auth();
@@ -173,6 +174,14 @@ export async function POST(req: NextRequest) {
         createdBy: profile[0].id,
       })
       .returning();
+
+    await sendMerchantNotification(
+      projectId,
+      'api_key.created',
+      'API key created',
+      `A new ${key_type} key "${name.trim()}" was generated for environment: ${environment}.`,
+      '/dashboard/developers/api-keys'
+    );
 
     return NextResponse.json({
       success: true,

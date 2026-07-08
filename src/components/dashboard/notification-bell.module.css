@@ -1,0 +1,211 @@
+/* ============================================================
+   Notification Bell Styles
+   ============================================================ */
+
+.bellContainer {
+  position: relative;
+  display: inline-block;
+}
+
+.bellBtn {
+  position: relative;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--duration-fast) var(--ease-default);
+}
+
+.bellBtn:hover {
+  background: var(--surface-subtle);
+  transform: scale(1.05);
+}
+
+.bellIcon {
+  font-size: 1.15rem;
+}
+
+.unreadBadge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background-color: var(--destructive);
+  color: var(--destructive-foreground, #fff);
+  font-size: 0.65rem;
+  font-weight: var(--font-semibold);
+  min-width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  border: 1.5px solid var(--surface);
+}
+
+/* Glassmorphic Dropdown Popover */
+.dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 340px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+  animation: scaleIn var(--duration-fast) var(--ease-out) forwards;
+  transform-origin: top right;
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.dropdownHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.title {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--foreground);
+}
+
+.markAllBtn {
+  background: none;
+  border: none;
+  font-size: var(--text-xs);
+  color: var(--success-foreground, #10b981);
+  font-weight: var(--font-medium);
+  cursor: pointer;
+  padding: 2px 4px;
+  transition: opacity var(--duration-fast);
+}
+
+.markAllBtn:hover {
+  opacity: 0.8;
+}
+
+.markAllBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.dropdownBody {
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+/* Scrollbar customizations */
+.dropdownBody::-webkit-scrollbar {
+  width: 6px;
+}
+.dropdownBody::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dropdownBody::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.emptyState {
+  padding: var(--space-8) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: 2rem;
+  margin-bottom: var(--space-2);
+}
+
+.notifList {
+  display: flex;
+  flex-direction: column;
+}
+
+.notifItem {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-default);
+  position: relative;
+}
+
+.notifItem:last-child {
+  border-bottom: none;
+}
+
+.notifItem:hover {
+  background-color: var(--surface-subtle);
+}
+
+.unreadItem {
+  background-color: rgba(16, 185, 129, 0.02);
+}
+
+.unreadItem::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background-color: var(--success-foreground, #10b981);
+}
+
+.itemHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: 2px;
+}
+
+.itemTitle {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--foreground);
+}
+
+.unreadDot {
+  width: 6px;
+  height: 6px;
+  background-color: var(--success-foreground, #10b981);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.itemBody {
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+
+.itemTime {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--foreground-subtle, #888);
+}

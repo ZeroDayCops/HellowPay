@@ -10,6 +10,7 @@ import { auth } from '@clerk/nextjs/server';
 import { db } from '@/lib/db';
 import { userProfiles, workspaceMembers, businesses, projects, paymentDestinations } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { createAuditLog } from '@/lib/services/audit.service';
 
 const UPI_REGEX = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
 
@@ -214,6 +215,18 @@ export async function POST(req: NextRequest) {
         .returning();
       destination = inserted;
     }
+
+    await createAuditLog({
+      action: 'payment_destination_changed',
+      targetType: 'payment_destination',
+      targetId: String(destination.id),
+      workspaceId: membership[0].workspaceId,
+      userId: profile[0].id,
+      metadata: {
+        environment,
+        upiId: destination.upiId,
+      },
+    });
 
     return NextResponse.json({ success: true, destination });
   } catch (error: unknown) {

@@ -17,6 +17,7 @@ import { eq, and, lte, or, inArray, desc } from 'drizzle-orm';
 import { generatePublicId } from '@/lib/crypto/id-generator';
 import { sha256, generateToken } from '@/lib/crypto/hash';
 import { signWebhookPayload } from '@/lib/crypto/webhook-signer';
+import { sendMerchantNotification, sendFounderNotification } from '@/lib/services/notification.service';
 
 // Supported event types
 export const SUPPORTED_WEBHOOK_EVENTS = [
@@ -288,6 +289,24 @@ export async function deliverWebhook(deliveryId: number, rawSecret: string): Pro
       }
     }
   });
+
+  if (!success && attemptNumber >= delivery.maxAttempts) {
+    // Exceeded retries: trigger notifications
+    sendMerchantNotification(
+      endpoint.projectId,
+      'webhook.delivery_failed',
+      'Webhook Endpoint Delivery Failed',
+      `Webhook delivery of event "${event.type}" failed after ${delivery.maxAttempts} attempts. Endpoint URL: ${endpoint.url}`,
+      '/dashboard/developers/webhooks'
+    );
+
+    sendFounderNotification(
+      'webhook.serious_failure',
+      'Serious Webhook Delivery Failure',
+      `Webhook delivery failed repeatedly for project ID: ${endpoint.projectId}. URL: ${endpoint.url}`,
+      '/admin/live-mode'
+    );
+  }
 
   return success;
 }

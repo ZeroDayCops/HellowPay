@@ -18,6 +18,7 @@ import {
 } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
+import { sendFounderNotification } from '@/lib/services/notification.service';
 
 export async function GET(req: NextRequest) {
   const { userId: clerkUserId } = await auth();
@@ -181,6 +182,13 @@ export async function POST(req: NextRequest) {
         projectName: project.name,
       },
     });
+
+    await sendFounderNotification(
+      'live_mode.requested',
+      'New Live Mode Application',
+      `Merchant "${biz[0].name}" has requested Live Mode activation for project "${project.name}".`,
+      '/admin/live-mode'
+    );
 
     return NextResponse.json({ success: true, application: newApp });
   } catch (error: unknown) {

@@ -16,6 +16,7 @@ import { eq } from 'drizzle-orm';
 import { submitPaymentClaim } from '@/lib/services/payment.service';
 import { triggerEvent } from '@/lib/services/event.service';
 import { createAuditLog } from '@/lib/services/audit.service';
+import { sendMerchantNotification } from '@/lib/services/notification.service';
 import { BadRequestError, NotFoundError } from '@/lib/api/errors';
 
 const handleSubmitClaim = async (
@@ -86,6 +87,14 @@ const handleSubmitClaim = async (
         claimed_reference: result.claim.claimedReference,
       },
     });
+
+    await sendMerchantNotification(
+      session.projectId,
+      'claim.created',
+      'New payment claim received',
+      `A new payment claim has been submitted (UTR: ${body.claimed_reference}).`,
+      `/dashboard/claims/${result.claim.publicId}`
+    );
 
     // 3. Format response in snake_case
     return NextResponse.json({

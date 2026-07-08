@@ -9,6 +9,7 @@ import { auth } from '@clerk/nextjs/server';
 import { db } from '@/lib/db';
 import { userProfiles, workspaceMembers, businesses, projects, apiKeys } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { sendMerchantNotification } from '@/lib/services/notification.service';
 
 export async function DELETE(
   req: NextRequest,
@@ -93,6 +94,14 @@ export async function DELETE(
         revokedAt: new Date(),
       })
       .where(eq(apiKeys.id, keyId));
+
+    await sendMerchantNotification(
+      projectId,
+      'api_key.revoked',
+      'API key revoked',
+      `The API key "${keyRecord.name}" was revoked.`,
+      '/dashboard/developers/api-keys'
+    );
 
     return NextResponse.json({ success: true, message: 'API key successfully revoked.' });
   } catch (error: unknown) {

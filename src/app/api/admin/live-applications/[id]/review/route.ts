@@ -15,6 +15,7 @@ import {
 } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
+import { sendMerchantNotification } from '@/lib/services/notification.service';
 
 export async function POST(
   req: NextRequest,
@@ -140,6 +141,14 @@ export async function POST(
         reason: reason || null,
       },
     });
+
+    await sendMerchantNotification(
+      app.projectId,
+      `live_mode.${targetStatus}`,
+      `Live Mode Application ${targetStatus.charAt(0).toUpperCase() + targetStatus.slice(1)}`,
+      `Your request to enable Live Mode has been ${targetStatus}.${reason ? ` Reason: ${reason}` : ''}`,
+      '/dashboard/settings'
+    );
 
     return NextResponse.json({ success: true, status: targetStatus, liveModeEnabled: liveEnabled });
   } catch (error: unknown) {

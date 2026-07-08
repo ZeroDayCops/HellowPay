@@ -11,6 +11,7 @@ import { db } from '@/lib/db';
 import { userProfiles, workspaceMembers, businesses, projects } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { createWebhookEndpoint, listWebhookEndpoints } from '@/lib/services/webhook-delivery.service';
+import { createAuditLog } from '@/lib/services/audit.service';
 
 export async function GET(req: NextRequest) {
   const { userId: clerkUserId } = await auth();
@@ -155,6 +156,18 @@ export async function POST(req: NextRequest) {
       url,
       description,
       eventTypes: event_types,
+    });
+
+    await createAuditLog({
+      action: 'webhook_endpoint_created',
+      targetType: 'webhook_endpoint',
+      targetId: endpoint.publicId,
+      workspaceId: membership[0].workspaceId,
+      userId: profile[0].id,
+      metadata: {
+        environment,
+        url: endpoint.url,
+      },
     });
 
     return NextResponse.json({ success: true, endpoint });

@@ -18,6 +18,7 @@ import {
 } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { confirmPaymentClaim, rejectPaymentClaim } from '@/lib/services/payment.service';
+import { sendMerchantNotification } from '@/lib/services/notification.service';
 
 export async function POST(
   req: NextRequest,
@@ -104,6 +105,14 @@ export async function POST(
         userId
       );
 
+      await sendMerchantNotification(
+        projectId,
+        'claim.confirmed',
+        'Payment Claim Confirmed',
+        `Payment claim with UTR "${result.claim.claimedReference}" has been approved by ${profile[0].name || 'merchant'}.`,
+        `/dashboard/claims/${claimPublicId}`
+      );
+
       return NextResponse.json({
         success: true,
         action: 'approved',
@@ -118,6 +127,14 @@ export async function POST(
         claimPublicId,
         `merchant:${clerkUserId}`,
         reason || 'Rejected by merchant'
+      );
+
+      await sendMerchantNotification(
+        projectId,
+        'claim.rejected',
+        'Payment Claim Rejected',
+        `Payment claim with UTR "${result.claim.claimedReference}" has been rejected by ${profile[0].name || 'merchant'}.${reason ? ` Reason: ${reason}` : ''}`,
+        `/dashboard/claims/${claimPublicId}`
       );
 
       return NextResponse.json({
