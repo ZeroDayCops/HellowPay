@@ -32,6 +32,7 @@ const devItems = [
   { label: 'Webhooks', href: '/dashboard/developers/webhooks', icon: '🔗' },
   { label: 'API Logs', href: '/dashboard/developers/api-logs', icon: '📝' },
   { label: 'Audit Logs', href: '/dashboard/developers/audit-logs', icon: '🛡️' },
+  { label: 'Risk & Fraud', href: '/dashboard/developers/risk-events', icon: '🚨' },
   { label: 'Documentation', href: '/docs', icon: '📖' },
 ];
 

@@ -18,6 +18,7 @@ import { triggerEvent } from '@/lib/services/event.service';
 import { createAuditLog } from '@/lib/services/audit.service';
 import { sendMerchantNotification } from '@/lib/services/notification.service';
 import { BadRequestError, NotFoundError } from '@/lib/api/errors';
+import { checkUtrDuplicateRisk, checkIpVelocityRisk } from '@/lib/services/risk.service';
 
 const handleSubmitClaim = async (
   req: NextRequest,
@@ -54,7 +55,14 @@ const handleSubmitClaim = async (
     throw new BadRequestError('Field "claimed_reference" is required.');
   }
 
+  // Derive client IP context for risk velocity check
+  const ipAddress = req.headers.get('x-forwarded-for') || '127.0.0.1';
+
   try {
+    // Perform Fraud Risk Detections
+    await checkIpVelocityRisk(session.projectId, ipAddress);
+    await checkUtrDuplicateRisk(session.projectId, body.claimed_reference, session.id);
+
     // 1. Submit claim in database transaction
     const result = await submitPaymentClaim({
       projectId: session.projectId,
