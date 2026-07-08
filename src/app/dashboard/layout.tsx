@@ -4,6 +4,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import styles from './layout.module.css';
 
+import { EnvironmentProvider } from '@/lib/contexts/environment-context';
+import { EnvironmentSelector } from '@/components/dashboard/environment-selector';
+import { DynamicEnvironmentBadge } from '@/components/dashboard/dynamic-badge';
+
 export const metadata: Metadata = {
   title: {
     default: 'Dashboard',
@@ -39,97 +43,99 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className={styles.dashboard}>
-      {/* ---- Sidebar ---- */}
-      <aside className={styles.sidebar}>
-        <div className={styles.sidebarHeader}>
-          <Link href="/dashboard" className={styles.logoLink}>
-            <Image
-              src="/logo.png"
-              alt="HollowPay"
-              width={28}
-              height={28}
-              className={styles.logoImage}
-            />
-            <span className={styles.logoText}>HollowPay</span>
-          </Link>
-        </div>
-
-        {/* Environment Selector */}
-        <div className={styles.envSelector}>
-          <span className="badge badge-test">TEST MODE</span>
-        </div>
-
-        <nav className={styles.sidebarNav}>
-          <div className={styles.navGroup}>
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={styles.navItem}
-              >
-                <span className={styles.navIcon}>{item.icon}</span>
-                <span className={styles.navLabel}>{item.label}</span>
-              </Link>
-            ))}
+    <EnvironmentProvider>
+      <div className={styles.dashboard}>
+        {/* ---- Sidebar ---- */}
+        <aside className={styles.sidebar}>
+          <div className={styles.sidebarHeader}>
+            <Link href="/dashboard" className={styles.logoLink}>
+              <Image
+                src="/logo.png"
+                alt="HollowPay"
+                width={28}
+                height={28}
+                className={styles.logoImage}
+              />
+              <span className={styles.logoText}>HollowPay</span>
+            </Link>
           </div>
 
-          <div className={styles.navGroupLabel}>Developers</div>
-          <div className={styles.navGroup}>
-            {devItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={styles.navItem}
-              >
-                <span className={styles.navIcon}>{item.icon}</span>
-                <span className={styles.navLabel}>{item.label}</span>
-              </Link>
-            ))}
+          {/* Environment Selector */}
+          <div className={styles.envSelector}>
+            <EnvironmentSelector />
           </div>
 
-          <div className={styles.navGroupLabel}>Business</div>
-          <div className={styles.navGroup}>
-            {settingsItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={styles.navItem}
-              >
-                <span className={styles.navIcon}>{item.icon}</span>
-                <span className={styles.navLabel}>{item.label}</span>
-              </Link>
-            ))}
-          </div>
-        </nav>
+          <nav className={styles.sidebarNav}>
+            <div className={styles.navGroup}>
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={styles.navItem}
+                >
+                  <span className={styles.navIcon}>{item.icon}</span>
+                  <span className={styles.navLabel}>{item.label}</span>
+                </Link>
+              ))}
+            </div>
 
-        <div className={styles.sidebarFooter}>
-          <div className={styles.userSection}>
-            <UserButton
-              appearance={{
-                elements: {
-                  avatarBox: { width: 32, height: 32 },
-                },
-              }}
-            />
-          </div>
-        </div>
-      </aside>
+            <div className={styles.navGroupLabel}>Developers</div>
+            <div className={styles.navGroup}>
+              {devItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={styles.navItem}
+                >
+                  <span className={styles.navIcon}>{item.icon}</span>
+                  <span className={styles.navLabel}>{item.label}</span>
+                </Link>
+              ))}
+            </div>
 
-      {/* ---- Main Content ---- */}
-      <main className={styles.main}>
-        <header className={styles.topBar}>
-          <div className={styles.topBarLeft}>
-            {/* Breadcrumb or page title will go here */}
+            <div className={styles.navGroupLabel}>Business</div>
+            <div className={styles.navGroup}>
+              {settingsItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={styles.navItem}
+                >
+                  <span className={styles.navIcon}>{item.icon}</span>
+                  <span className={styles.navLabel}>{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          </nav>
+
+          <div className={styles.sidebarFooter}>
+            <div className={styles.userSection}>
+              <UserButton
+                appearance={{
+                  elements: {
+                    avatarBox: { width: 32, height: 32 },
+                  },
+                }}
+              />
+            </div>
           </div>
-          <div className={styles.topBarRight}>
-            <span className="badge badge-test hide-mobile">TEST MODE</span>
+        </aside>
+
+        {/* ---- Main Content ---- */}
+        <main className={styles.main}>
+          <header className={styles.topBar}>
+            <div className={styles.topBarLeft}>
+              {/* Breadcrumb or page title will go here */}
+            </div>
+            <div className={styles.topBarRight}>
+              <DynamicEnvironmentBadge />
+            </div>
+          </header>
+          <div className={styles.content}>
+            {children}
           </div>
-        </header>
-        <div className={styles.content}>
-          {children}
-        </div>
-      </main>
-    </div>
+        </main>
+      </div>
+    </EnvironmentProvider>
   );
 }

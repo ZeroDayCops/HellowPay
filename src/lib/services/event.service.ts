@@ -50,7 +50,7 @@ export async function triggerEvent(payload: EventPayload): Promise<string> {
       type: payload.type,
       data: payload.data,
     })
-    .returning({ id: events.id });
+    .returning();
 
   // 2. Query subscribed active webhook endpoints
   // Find endpoints for this project & env, which have a subscription matching the event type

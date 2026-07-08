@@ -30,6 +30,7 @@ const PREFIXES = {
   customer: 'cust_hp',
   user: 'usr_hp',
   audit: 'aud_hp',
+  product: 'prod_hp',
   notification: 'notif_hp',
 } as const;
 
