@@ -10,8 +10,9 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useEnvironment } from '@/lib/contexts/environment-context';
-import { Card, Badge } from '@/components/ui';
+import { Card, Badge, Button } from '@/components/ui';
 import styles from './page.module.css';
+import { formatCurrency } from '@/lib/utils/currency-formatter';
 
 interface DashboardMetrics {
   confirmedVolume: number;
@@ -33,6 +34,7 @@ export default function DashboardOverviewPage() {
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [recentPayments, setRecentPayments] = useState<RecentPayment[]>([]);
+  const [liveModeEnabled, setLiveModeEnabled] = useState(true);
 
   useEffect(() => {
     async function fetchMetrics() {
@@ -49,6 +51,7 @@ export default function DashboardOverviewPage() {
 
         setMetrics(data.metrics);
         setRecentPayments(data.recentPayments || []);
+        setLiveModeEnabled(data.liveModeEnabled !== false);
       } catch (err) {
         console.error('Failed to load dashboard metrics:', err);
       } finally {
@@ -82,12 +85,39 @@ export default function DashboardOverviewPage() {
         </p>
       </div>
 
+      {environment === 'live' && !liveModeEnabled && (
+        <div
+          className="alert alert-warning"
+          style={{
+            marginTop: 16,
+            padding: '12px 16px',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid rgba(251, 191, 36, 0.3)',
+            background: 'rgba(251, 191, 36, 0.08)',
+            color: '#f59e0b',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <div>
+            <strong>🔒 Live Mode is Pending Verification</strong>
+            <div className="caption text-muted-foreground mt-1" style={{ color: 'rgba(255,255,255,0.7)' }}>
+              Your live workspace is blocked from processing actual UPI transactions until approved by ZeroDayCops compliance.
+            </div>
+          </div>
+          <Button size="sm" onClick={() => router.push('/dashboard/settings')} style={{ background: '#f59e0b', color: '#111' }}>
+            Request Approval
+          </Button>
+        </div>
+      )}
+
       {/* Metrics Grid */}
       <div className={styles.metricsGrid}>
         <Card className={styles.metricCard}>
           <div className="caption">Confirmed Volume</div>
           <div className={styles.metricValue}>
-            ₹{volume.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            {formatCurrency(volume * 100, 'INR')}
           </div>
           <div className="caption mt-2 text-muted-foreground">Direct-to-UPI settled volume</div>
         </Card>
@@ -107,7 +137,7 @@ export default function DashboardOverviewPage() {
         <Card className={styles.metricCard}>
           <div className="caption">HollowPay Fees Saved</div>
           <div className={styles.metricValueGreen}>
-            ₹{((volume * 0.02) + (count * 2)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            {formatCurrency(Math.round(((volume * 0.02) + (count * 2)) * 100), 'INR')}
           </div>
           <div className="caption mt-2 text-success-foreground">
             Platform charges saved vs. Stripe (approx 2% + ₹2)
@@ -181,7 +211,7 @@ export default function DashboardOverviewPage() {
                       <code className="monospace">{payment.id}</code>
                     </td>
                     <td>
-                      {payment.currency} {(payment.amountMinor / 100).toFixed(2)}
+                      {formatCurrency(payment.amountMinor, payment.currency)}
                     </td>
                     <td>
                       <Badge

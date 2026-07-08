@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "app": {
+    "name": "HollowPay",
+    "framework": "next",
+    "port": 3000,
+    "url": "http://localhost:3000"
+  },
+  "sdk": {
+    "session": "hollowpay",
+    "connect": true
+  },
+  "capabilities": {
+    "testids": [
+      "sign-in-btn",
+      "sign-up-btn",
+      "onboarding-wizard",
+      "env-selector",
+      "claims-table",
+      "claim-approve-btn",
+      "claim-reject-btn",
+      "checkout-utr-input",
+      "checkout-submit-btn"
+    ],
+    "signals": [
+      "checkout:opened",
+      "checkout:claim_submitted",
+      "checkout:payment_confirmed",
+      "checkout:payment_rejected",
+      "claims:loaded",
+      "claims:action_completed",
+      "dashboard:metrics_loaded",
+      "onboarding:step_completed",
+      "onboarding:finished"
+    ]
+  }
+}

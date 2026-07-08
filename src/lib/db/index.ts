@@ -37,3 +37,16 @@ function createDbClient() {
 
 export const db = createDbClient();
 export type Database = typeof db;
+
+// Dynamically start webhook polling scheduler after db export is completed to avoid circular dependencies
+if (typeof window === 'undefined') {
+  setTimeout(() => {
+    import('@/lib/services/webhook-delivery.service')
+      .then((mod) => {
+        mod.startWebhookScheduler();
+      })
+      .catch((err) => {
+        console.error('Failed to start background webhook scheduler:', err);
+      });
+  }, 1000);
+}

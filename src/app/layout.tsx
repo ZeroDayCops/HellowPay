@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
+import { ReticleDev } from './reticle-dev';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -30,6 +31,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <ClerkProvider>
+          {process.env.NODE_ENV === 'development' ? <ReticleDev /> : null}
           {children}
         </ClerkProvider>
       </body>

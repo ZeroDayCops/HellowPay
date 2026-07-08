@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { runInRequestContext, RequestStore } from './request-context';
+import { runInRequestContext, RequestStore, getRequestStore } from './request-context';
 import { handleApiError } from './errors';
 import { authenticateApiKey, populateAuthInContext } from '@/lib/auth/api-auth';
 import { generateRequestId } from '@/lib/crypto/id-generator';
@@ -16,6 +16,9 @@ import {
   saveIdempotencyResponse,
   unlockIdempotencyKey,
 } from '@/lib/services/idempotency.service';
+
+import { logApiRequest } from '@/lib/services/api-log.service';
+import { checkRateLimit } from '@/lib/api/rate-limiter';
 
 export type HandlerFunction = (
   req: NextRequest,
@@ -51,6 +54,7 @@ export function wrapRouteHandler(
     const requestId = generateRequestId();
     const headers = req.headers;
     const ipAddress = headers.get('x-forwarded-for') ?? undefined;
+    const startTime = Date.now();
 
     const initialStore: RequestStore = {
       requestId,
@@ -59,8 +63,17 @@ export function wrapRouteHandler(
       method: req.method,
     };
 
+    let requestBody: any = null;
+    if (['POST', 'PUT', 'PATCH'].includes(req.method.toUpperCase())) {
+      try {
+        requestBody = await req.clone().json();
+      } catch {
+        // Ignore parsing errors for non-JSON content
+      }
+    }
+
     // Run the entire request lifetime in the AsyncLocalStorage context
-    return runInRequestContext(initialStore, async () => {
+    const response = await runInRequestContext(initialStore, async () => {
       const idempotencyKey = headers.get('Idempotency-Key');
       const isPostRequest = req.method.toUpperCase() === 'POST';
 
@@ -68,6 +81,9 @@ export function wrapRouteHandler(
         if (authRequired) {
           const authHeader = headers.get('Authorization');
           const authenticated = await authenticateApiKey(authHeader);
+          
+          // Apply sliding window rate limit per merchant project
+          checkRateLimit(`project:${authenticated.projectId}`, 120);
           
           // Populate authenticating details into RequestContext
           const store = populateAuthInContext(initialStore, authenticated);
@@ -98,16 +114,16 @@ export function wrapRouteHandler(
               }
 
               try {
-                const response = await handler(req, ...args);
+                const res = await handler(req, ...args);
                 
                 // Read and cache the response body
                 let responseBody: unknown = null;
                 try {
-                  responseBody = await response.clone().json();
+                  responseBody = await res.clone().json();
                 } catch {
                   // Fallback for non-JSON responses
                   try {
-                    responseBody = { message: await response.clone().text() };
+                    responseBody = { message: await res.clone().text() };
                   } catch {
                     responseBody = { message: 'No body returned' };
                   }
@@ -122,12 +138,12 @@ export function wrapRouteHandler(
                   authenticated.projectId,
                   authenticated.environment,
                   idempotencyKey,
-                  response.status,
+                  res.status,
                   responseBody,
                   resourceId
                 );
 
-                return response;
+                return res;
               } catch (handlerError) {
                 // Request failed/crashed, unlock the key to allow retries
                 await unlockIdempotencyKey(
@@ -145,10 +161,45 @@ export function wrapRouteHandler(
         }
 
         // Run handler without auth (e.g. webhook endpoint, public checkout)
+        checkRateLimit(`ip:${ipAddress ?? 'anonymous'}`, 100);
         return await handler(req, ...args);
       } catch (error) {
         return handleApiError(error);
       }
     });
+
+    // Capture elapsed execution duration
+    const durationMs = Date.now() - startTime;
+    const store = getRequestStore() || initialStore;
+
+    // Extract response body
+    let responseBody: any = null;
+    try {
+      responseBody = await response.clone().json();
+    } catch {
+      try {
+        responseBody = { message: await response.clone().text() };
+      } catch {
+        responseBody = null;
+      }
+    }
+
+    // Log the API transaction asynchronously (non-blocking)
+    void logApiRequest({
+      method: req.method,
+      path: req.nextUrl.pathname,
+      statusCode: response.status,
+      durationMs,
+      requestHeaders: Object.fromEntries(req.headers.entries()),
+      requestBody,
+      responseBody,
+      ipAddress,
+      requestId,
+      apiKeyPrefix: store.actorType === 'api' ? store.actorId : undefined,
+      projectId: store.projectId,
+      environment: store.environment as any,
+    });
+
+    return response;
   };
 }

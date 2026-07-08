@@ -75,7 +75,8 @@ export function verifyWebhookSignature(
 
   // Prevent replay attacks by verifying timestamp is recent
   const now = Date.now();
-  if (Math.abs(now - timestamp) > SIGNATURE_TOLERANCE_MS) {
+  const timestampMs = timestamp < 100000000000 ? timestamp * 1000 : timestamp;
+  if (Math.abs(now - timestampMs) > SIGNATURE_TOLERANCE_MS) {
     return { isValid: false, reason: 'expired' };
   }
 

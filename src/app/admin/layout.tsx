@@ -78,7 +78,7 @@ export default function AdminLayout({
       <main className={styles.main}>
         <header className={styles.topBar}>
           <div className={styles.topBarLeft}>
-            <span className="body-sm font-semibold">ZeroDayCops Infrastructure Control</span>
+            <span className="body-sm font-semibold"><a href="https://zerodaycops.in" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>ZeroDayCops</a> Infrastructure Control</span>
           </div>
           <div className={styles.topBarRight}>
             <span className={styles.adminBadge}>LIVE MONITORING</span>

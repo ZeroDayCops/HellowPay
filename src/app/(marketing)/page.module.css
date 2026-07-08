@@ -44,6 +44,63 @@
   letter-spacing: -0.01em;
 }
 
+.navMarquee {
+  display: none;
+  flex: 1;
+  min-width: 0;
+  margin: 0 var(--space-8);
+  overflow: hidden;
+  position: relative;
+  mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 40px, #000 calc(100% - 40px), transparent);
+}
+
+@media (min-width: 860px) and (max-width: 1100px) {
+  .navMarquee {
+    display: block;
+    max-width: 250px;
+  }
+}
+
+@media (min-width: 1101px) {
+  .navMarquee {
+    display: block;
+    max-width: 480px;
+  }
+}
+
+.marqueeTrack {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  animation: hollowpay-marquee 18s linear infinite;
+  animation-duration: 18s !important;
+}
+
+.navMarquee:hover .marqueeTrack {
+  animation-play-state: paused;
+}
+
+.marqueeItem {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding-right: 3rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--foreground-muted);
+  font-weight: var(--font-medium);
+  letter-spacing: -0.01em;
+}
+
+@keyframes hollowpay-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 .navLinks {
   display: flex;
   align-items: center;

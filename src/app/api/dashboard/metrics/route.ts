@@ -130,6 +130,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       onboarded: true,
+      liveModeEnabled: proj[0].liveModeEnabled,
       metrics: {
         confirmedVolume: totalVolumeMinor / 100, // Format as major currency units
         confirmedCount,

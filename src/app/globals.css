@@ -186,7 +186,7 @@ html {
   html {
     scroll-behavior: auto;
   }
-  *,
+  *:not([class*="navMarquee"] *):not([class*="marqueeTrack"]):not([class*="marqueeItem"]),
   *::before,
   *::after {
     animation-duration: 0.01ms !important;

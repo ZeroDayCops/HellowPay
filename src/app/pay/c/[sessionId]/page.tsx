@@ -123,10 +123,20 @@ export default async function HostedCheckoutPage({ params }: PageProps) {
   const finalUpiId = destination.upiId || 'payment@hollowpay';
   const finalPayeeName = destination.payeeName || business.name || 'Merchant';
 
+  // Currency conversion logic for UPI (since UPI rails are exclusively INR)
+  const exchangeRates: Record<string, number> = {
+    USD: 83,
+    EUR: 90,
+    INR: 1,
+  };
+  const currencyUpper = (order.currency || 'INR').toUpperCase().trim();
+  const conversionRate = exchangeRates[currencyUpper] || 1;
+  const upiAmountMinor = Math.round(order.amountMinor * conversionRate);
+
   const upiIntentString = generateUpiIntent({
     upiId: finalUpiId,
     payeeName: finalPayeeName,
-    amountMinor: order.amountMinor,
+    amountMinor: upiAmountMinor,
     transactionNote: `Order ${order.publicId}`,
   });
 
@@ -163,6 +173,8 @@ export default async function HostedCheckoutPage({ params }: PageProps) {
         payeeName={finalPayeeName}
         upiIntent={upiIntentString}
         qrCodeData={qrCodeDataUrl}
+        conversionRate={conversionRate}
+        convertedAmountMinor={upiAmountMinor}
       />
     </div>
   );

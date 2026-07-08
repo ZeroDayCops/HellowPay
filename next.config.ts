@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next';
+import { withReticle } from '@reticlehq/core/next';
 
 const nextConfig: NextConfig = {
   // Security headers applied via middleware
@@ -16,6 +17,9 @@ const nextConfig: NextConfig = {
   },
   // Strict mode for development
   reactStrictMode: true,
+  // Silence Turbopack webpack config presence error by supplying empty config per Next.js 16 instructions
+  turbopack: {},
 };
 
-export default nextConfig;
+// Satisfy Next.js type-checker due to minor typing discrepancies between Reticle and Next.js 16's NextConfig type
+export default withReticle(nextConfig as any) as any;

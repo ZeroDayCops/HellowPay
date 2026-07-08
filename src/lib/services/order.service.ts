@@ -43,8 +43,9 @@ export async function createOrder(params: CreateOrderParams) {
     throw new Error('Order amount must be greater than zero.');
   }
 
-  if (params.currency !== 'INR') {
-    throw new Error('HollowPay V1 strictly supports INR payments only.');
+  const allowedCurrencies = ['INR', 'USD', 'EUR'];
+  if (!allowedCurrencies.includes((params.currency || '').toUpperCase().trim())) {
+    throw new Error(`Currency "${params.currency}" is not supported. Supported: ${allowedCurrencies.join(', ')}`);
   }
 
   // Check unique merchant_order_id constraint beforehand

@@ -12,23 +12,7 @@ import { wrapRouteHandler } from '@/lib/api/route-handler';
 import { getRequestStore } from '@/lib/api/request-context';
 import { createOrder, listOrders } from '@/lib/services/order.service';
 import { BadRequestError } from '@/lib/api/errors';
-
-/** Helper to convert order schema object into a clean REST API snake_case response payload */
-export function formatOrderResponse(order: any) {
-  return {
-    id: order.publicId,
-    amount_minor: order.amountMinor,
-    currency: order.currency,
-    status: order.status,
-    merchant_order_id: order.merchantOrderId,
-    description: order.description,
-    customer_id: order.customerId,
-    metadata: order.metadata,
-    expires_at: order.expiresAt ? order.expiresAt.toISOString() : null,
-    created_at: order.createdAt ? order.createdAt.toISOString() : null,
-    updated_at: order.updatedAt ? order.updatedAt.toISOString() : null,
-  };
-}
+import { formatOrderResponse } from '@/lib/services/order-formatter';
 
 const handleCreateOrder = async (req: NextRequest) => {
   const store = getRequestStore();
@@ -54,8 +38,9 @@ const handleCreateOrder = async (req: NextRequest) => {
   if (!body.currency) {
     throw new BadRequestError('Field "currency" is required.');
   }
-  if (body.currency !== 'INR') {
-    throw new BadRequestError('Only "INR" currency is supported in HollowPay V1.');
+  const allowedCurrencies = ['INR', 'USD', 'EUR'];
+  if (!allowedCurrencies.includes(body.currency.toUpperCase().trim())) {
+    throw new BadRequestError(`Currency "${body.currency}" is not supported. Supported: ${allowedCurrencies.join(', ')}`);
   }
 
   let expiresAt: Date | undefined;

@@ -55,6 +55,7 @@ export async function authenticateApiKey(
       environment: apiKeys.environment,
       revokedAt: apiKeys.revokedAt,
       workspaceId: businesses.workspaceId,
+      liveModeEnabled: projects.liveModeEnabled,
     })
     .from(apiKeys)
     .innerJoin(projects, eq(apiKeys.projectId, projects.id))
@@ -72,6 +73,11 @@ export async function authenticateApiKey(
   }
 
   const authData = results[0];
+
+  // Block live API requests if Live Mode is not approved/enabled on project
+  if (authData.environment === 'live' && !authData.liveModeEnabled) {
+    throw new UnauthorizedError('Live Mode access is disabled or unapproved. Request compliance verification in Settings.');
+  }
 
   return {
     projectId: authData.projectId,

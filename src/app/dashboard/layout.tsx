@@ -7,6 +7,7 @@ import styles from './layout.module.css';
 import { EnvironmentProvider } from '@/lib/contexts/environment-context';
 import { EnvironmentSelector } from '@/components/dashboard/environment-selector';
 import { DynamicEnvironmentBadge } from '@/components/dashboard/dynamic-badge';
+import { MobileNav } from '@/components/dashboard/mobile-nav';
 
 export const metadata: Metadata = {
   title: {
@@ -18,6 +19,7 @@ export const metadata: Metadata = {
 const navItems = [
   { label: 'Overview', href: '/dashboard', icon: '◎' },
   { label: 'Payments', href: '/dashboard/payments', icon: '₹' },
+  { label: 'Claims', href: '/dashboard/claims', icon: '🔍' },
   { label: 'Orders', href: '/dashboard/orders', icon: '📋' },
   { label: 'Payment Pages', href: '/dashboard/payment-pages', icon: '📄' },
   { label: 'Customers', href: '/dashboard/customers', icon: '👤' },
@@ -125,7 +127,7 @@ export default function DashboardLayout({
         <main className={styles.main}>
           <header className={styles.topBar}>
             <div className={styles.topBarLeft}>
-              {/* Breadcrumb or page title will go here */}
+              <MobileNav />
             </div>
             <div className={styles.topBarRight}>
               <DynamicEnvironmentBadge />

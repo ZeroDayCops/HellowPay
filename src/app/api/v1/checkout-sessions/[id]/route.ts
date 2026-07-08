@@ -10,7 +10,7 @@ import { wrapRouteHandler } from '@/lib/api/route-handler';
 import { getRequestStore } from '@/lib/api/request-context';
 import { getCheckoutSessionByPublicId } from '@/lib/services/checkout.service';
 import { BadRequestError, NotFoundError } from '@/lib/api/errors';
-import { formatCheckoutSessionResponse } from '../route';
+import { formatCheckoutSessionResponse } from '@/lib/services/checkout-formatter';
 
 const handleGetCheckout = async (
   req: NextRequest,

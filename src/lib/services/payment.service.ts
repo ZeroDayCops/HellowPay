@@ -7,6 +7,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { db } from '@/lib/db';
+import { validateObjectMagicBytes } from '@/lib/storage/r2';
 import {
   paymentAttempts,
   paymentAttemptEvents,
@@ -103,6 +104,14 @@ export async function createPaymentAttempt(
 export async function submitPaymentClaim(params: SubmitClaimParams) {
   if (!params.claimedReference || params.claimedReference.trim().length < 8) {
     throw new Error('Please enter a valid transaction reference / UTR number.');
+  }
+
+  // Validate that the uploaded receipt screenshot has valid image magic bytes
+  if (params.screenshotKey) {
+    const isValidImage = await validateObjectMagicBytes(params.screenshotKey);
+    if (!isValidImage) {
+      throw new Error('Uploaded screenshot image format is invalid or corrupted. Please upload a valid PNG, JPG, or WebP file.');
+    }
   }
 
   // 1. Transactionally lock and retrieve checkout context

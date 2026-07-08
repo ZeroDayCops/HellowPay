@@ -19,6 +19,18 @@ export default function HomePage() {
             />
             <span className={styles.logoText}>HollowPay</span>
           </Link>
+
+          <div className={styles.navMarquee}>
+            <div className={styles.marqueeTrack}>
+              <span className={styles.marqueeItem}>
+                🕳️ Stay hollow. Get paid. • 👻 Payment vanished. You got it. • 💸 Hollow? Never your wallet. •
+              </span>
+              <span className={styles.marqueeItem} aria-hidden="true">
+                🕳️ Stay hollow. Get paid. • 👻 Payment vanished. You got it. • 💸 Hollow? Never your wallet. •
+              </span>
+            </div>
+          </div>
+
           <div className={styles.navLinks}>
             <Link href="/docs" className={styles.navLink}>Docs</Link>
             <Show when="signed-out">
@@ -267,7 +279,7 @@ export default function HomePage() {
               height={24}
             />
             <span className={styles.footerBrandText}>HollowPay</span>
-            <span className="caption">by ZeroDayCops</span>
+            <span className="caption">by <a href="https://zerodaycops.in" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>ZeroDayCops</a></span>
           </div>
           <div className={styles.footerLinks}>
             <Link href="/docs" className={styles.footerLink}>Documentation</Link>
@@ -275,7 +287,7 @@ export default function HomePage() {
             <a href="https://github.com/ZeroDayCops/HollowPay" className={styles.footerLink} target="_blank" rel="noopener noreferrer">GitHub</a>
           </div>
           <p className="caption mt-4">
-            © {new Date().getFullYear()} ZeroDayCops. Payment experiences without the platform fee.
+            © {new Date().getFullYear()} <a href="https://zerodaycops.in" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>ZeroDayCops</a>. Payment experiences without the platform fee.
           </p>
         </div>
       </footer>

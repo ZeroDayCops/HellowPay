@@ -11,7 +11,7 @@ import { wrapRouteHandler } from '@/lib/api/route-handler';
 import { getRequestStore } from '@/lib/api/request-context';
 import { cancelOrder } from '@/lib/services/order.service';
 import { BadRequestError } from '@/lib/api/errors';
-import { formatOrderResponse } from '../../route';
+import { formatOrderResponse } from '@/lib/services/order-formatter';
 
 const handleCancelOrder = async (
   req: NextRequest,

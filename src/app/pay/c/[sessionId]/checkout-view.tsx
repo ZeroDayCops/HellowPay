@@ -8,9 +8,11 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button, Input, Card } from '@/components/ui';
+import { signal } from '@/lib/reticle';
 import styles from './page.module.css';
+import { formatCurrency } from '@/lib/utils/currency-formatter';
 
 interface CheckoutViewProps {
   session: any;
@@ -21,6 +23,8 @@ interface CheckoutViewProps {
   payeeName: string;
   upiIntent: string;
   qrCodeData: string;
+  conversionRate?: number;
+  convertedAmountMinor?: number;
 }
 
 export default function CheckoutView({
@@ -32,12 +36,21 @@ export default function CheckoutView({
   payeeName,
   upiIntent,
   qrCodeData,
+  conversionRate = 1,
+  convertedAmountMinor,
 }: CheckoutViewProps) {
   // Stepper state: 'pay' | 'claim' | 'verifying' | 'success' | 'rejected'
   const [step, setStep] = useState<'pay' | 'claim' | 'verifying' | 'success' | 'rejected'>('pay');
   const [claimedReference, setClaimedReference] = useState('');
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [screenshotKey, setScreenshotKey] = useState<string | null>(null);
+
+  // Emit checkout opened signal when the view loads in 'pay' state
+  useEffect(() => {
+    if (step === 'pay') {
+      signal('checkout:opened', { sessionId: session.publicId, amountMinor: order.amountMinor });
+    }
+  }, [step, session.publicId, order.amountMinor]);
   
   // Operational states
   const [loading, setLoading] = useState(false);
@@ -49,10 +62,7 @@ export default function CheckoutView({
 
   // Format paise into standard INR format (e.g. 50000 -> ₹500.00)
   const formatAmount = (minorAmount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-    }).format(minorAmount / 100);
+    return formatCurrency(minorAmount, order.currency);
   };
 
   // Helper to handle client-side R2 file upload
@@ -140,6 +150,12 @@ export default function CheckoutView({
         throw new Error(data.error || 'Failed to submit payment claim.');
       }
 
+      signal('checkout:claim_submitted', {
+        sessionId: session.publicId,
+        utr: claimedReference.trim(),
+        hasScreenshot: !!screenshotKey,
+      });
+
       setStep('verifying');
     } catch (err: any) {
       setError(err.message || 'Failed to record transaction claim.');
@@ -164,6 +180,7 @@ export default function CheckoutView({
       if (!res.ok) {
         throw new Error(data.error || 'Simulation confirmed trigger failed.');
       }
+      signal('checkout:payment_confirmed', { sessionId: session.publicId });
       setStep('success');
     } catch (err: any) {
       setError(err.message || 'Simulation confirmation failed.');
@@ -189,6 +206,7 @@ export default function CheckoutView({
       if (!res.ok) {
         throw new Error(data.error || 'Simulation rejected trigger failed.');
       }
+      signal('checkout:payment_rejected', { sessionId: session.publicId, reason });
       setRejectReason(reason);
       setStep('rejected');
     } catch (err: any) {
@@ -259,6 +277,27 @@ export default function CheckoutView({
               Transfer funds peer-to-peer directly to the merchant.
             </p>
 
+            {order.currency.toUpperCase() !== 'INR' && convertedAmountMinor && (
+              <div 
+                style={{ 
+                  margin: '12px 0', 
+                  padding: '12px 14px', 
+                  background: 'rgba(59, 130, 246, 0.08)', 
+                  border: '1px solid rgba(59, 130, 246, 0.2)', 
+                  borderRadius: '8px',
+                  color: '#93c5fd',
+                  fontSize: '0.8rem',
+                  lineHeight: '1.4'
+                }}
+              >
+                <strong>💱 Currency Conversion Alert</strong>
+                <p style={{ marginTop: 4, opacity: 0.9 }}>
+                  This transaction is valued at <strong>{formatAmount(order.amountMinor)}</strong>. 
+                  Since UPI operates exclusively in INR, you are paying the equivalent of <strong>{formatCurrency(convertedAmountMinor, 'INR')}</strong> (calculated at a fixed rate of 1 {order.currency} = {conversionRate} INR).
+                </p>
+              </div>
+            )}
+
             {/* QR Render block */}
             <div className={styles.qrBlock}>
               {qrCodeData ? (
@@ -311,6 +350,7 @@ export default function CheckoutView({
                 onChange={(e) => setClaimedReference(e.target.value)}
                 maxLength={24}
                 required
+                data-testid="checkout-utr-input"
               />
 
               {/* Dynamic Image upload */}
@@ -324,6 +364,7 @@ export default function CheckoutView({
                     onChange={handleFileChange}
                     accept="image/*"
                     disabled={loading}
+                    data-testid="checkout-screenshot-upload"
                   />
                   <label htmlFor="screenshot" className={styles.fileLabel}>
                     {screenshotFile ? (
@@ -349,7 +390,7 @@ export default function CheckoutView({
               <Button variant="secondary" className="flex-1" onClick={() => setStep('pay')}>
                 Back
               </Button>
-              <Button className="flex-1" onClick={handleClaimSubmit} disabled={loading}>
+              <Button className="flex-1" onClick={handleClaimSubmit} disabled={loading} data-testid="checkout-submit-btn">
                 {loading ? 'Submitting...' : 'Verify Claim'}
               </Button>
             </div>

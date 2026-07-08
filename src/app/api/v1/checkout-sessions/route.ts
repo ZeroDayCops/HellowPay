@@ -12,20 +12,7 @@ import { getRequestStore } from '@/lib/api/request-context';
 import { createCheckoutSession } from '@/lib/services/checkout.service';
 import { BadRequestError } from '@/lib/api/errors';
 
-/** Helper to convert checkout session schema object into clean REST API snake_case response payload */
-export function formatCheckoutSessionResponse(session: any) {
-  return {
-    id: session.publicId,
-    order_id: session.orderId,
-    status: session.status,
-    success_url: session.successUrl,
-    cancel_url: session.cancelUrl,
-    expires_at: session.expiresAt ? session.expiresAt.toISOString() : null,
-    created_at: session.createdAt ? session.createdAt.toISOString() : null,
-    updated_at: session.updatedAt ? session.updatedAt.toISOString() : null,
-    ...(session.order ? { order: session.order } : {}), // Inline order details if joined
-  };
-}
+import { formatCheckoutSessionResponse } from '@/lib/services/checkout-formatter';
 
 const handleCreateCheckout = async (req: NextRequest) => {
   const store = getRequestStore();

@@ -33,7 +33,7 @@ export default function AuthLayout({
         {children}
       </main>
       <footer className={styles.authFooter}>
-        <p className="caption">© {new Date().getFullYear()} ZeroDayCops. All rights reserved.</p>
+        <p className="caption">© {new Date().getFullYear()} <a href="https://zerodaycops.in" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'underline' }}>ZeroDayCops</a>. All rights reserved.</p>
       </footer>
     </div>
   );

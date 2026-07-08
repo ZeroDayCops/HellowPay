@@ -10,7 +10,7 @@ import { wrapRouteHandler } from '@/lib/api/route-handler';
 import { getRequestStore } from '@/lib/api/request-context';
 import { getOrderByIdOrPublicId } from '@/lib/services/order.service';
 import { BadRequestError, NotFoundError } from '@/lib/api/errors';
-import { formatOrderResponse } from '../route';
+import { formatOrderResponse } from '@/lib/services/order-formatter';
 
 const handleGetOrder = async (
   req: NextRequest,
