@@ -1,0 +1,393 @@
+/**
+ * HollowPay — Hosted Checkout Premium Stylesheet
+ *
+ * Implements glassmorphism, responsive layout grids, dynamic theme colors,
+ * rotating loader keyframes, and mobile-first container query scales.
+ */
+
+.layoutWrapper {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: radial-gradient(circle at 10% 20%, rgba(14, 5, 19, 1) 0%, rgba(28, 11, 44, 1) 45%, rgba(13, 4, 18, 1) 90%);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--foreground);
+  overflow-x: hidden;
+}
+
+.checkoutContainer {
+  width: 100%;
+  max-width: 480px;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+/* Test Mode Ribbon Alert */
+.testRibbon {
+  width: 100%;
+  background: linear-gradient(90deg, #b45309 0%, #d97706 50%, #b45309 100%);
+  color: #fff;
+  text-align: center;
+  padding: 6px var(--space-4);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+}
+
+.checkoutCard {
+  width: 100%;
+  background: rgba(28, 11, 44, 0.45) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4) !important;
+  padding: var(--space-6) !important;
+  box-sizing: border-box;
+}
+
+/* Header merchant configuration */
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.logo {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.logoPlaceholder {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--checkout-brand-color) 0%, rgba(28, 11, 44, 1) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #fff;
+}
+
+.merchantInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.merchantInfo h3 {
+  margin: 0;
+  color: #fff;
+  font-weight: 600;
+}
+
+.merchantInfo span {
+  color: var(--muted-foreground);
+}
+
+/* Dynamic Order Banner */
+.orderBanner {
+  background: linear-gradient(135deg, var(--checkout-brand-color) 0%, rgba(28, 11, 44, 0.8) 100%);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+  margin-bottom: var(--space-6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.errorBanner {
+  background: rgba(220, 38, 38, 0.15);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  color: #fca5a5;
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  font-size: 0.85rem;
+  margin-bottom: var(--space-4);
+  display: flex;
+  align-items: center;
+}
+
+.viewContent {
+  display: flex;
+  flex-direction: column;
+}
+
+/* QR Code details alignment */
+.qrBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: var(--space-4) 0;
+}
+
+.qrImage {
+  width: 200px;
+  height: 200px;
+  padding: var(--space-3);
+  background: #fff;
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  border: 2px solid var(--checkout-brand-color);
+}
+
+.qrPlaceholder {
+  width: 200px;
+  height: 200px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-foreground);
+  font-size: 0.85rem;
+}
+
+/* Desktop and Mobile Responsiveness triggers */
+.mobileAction {
+  display: none; /* Hidden by default on desktop */
+}
+
+.detailsBlock {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.detailsBlock span {
+  color: var(--muted-foreground);
+}
+
+/* Stepper Claim forms upload indicators */
+.fileDropzone {
+  position: relative;
+  width: 100%;
+  height: 64px;
+  border: 2px dashed rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+  margin-top: var(--space-2);
+}
+
+.fileDropzone:hover {
+  border-color: var(--checkout-brand-color);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.fileInput {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.fileLabel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.progressBar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-full);
+  margin-top: var(--space-2);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--checkout-brand-color);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+/* Stepper Status: Loader Spinner */
+.loaderContainer {
+  display: flex;
+  justify-content: center;
+  margin: var(--space-8) 0 var(--space-2) 0;
+}
+
+.spinLoader {
+  width: 60px;
+  height: 60px;
+  border: 4px solid rgba(255, 255, 255, 0.08);
+  border-left-color: var(--checkout-brand-color);
+  border-radius: 50%;
+  animation: spin 1.2s cubic-bezier(0.5, 0.1, 0.4, 0.9) infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.noticeBox {
+  background: rgba(251, 191, 36, 0.06);
+  border: 1px dashed rgba(251, 191, 36, 0.25);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-top: var(--space-6);
+  color: #fde047;
+}
+
+.noticeBox ul {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Success & Rejection indicators */
+.successIcon {
+  width: 64px;
+  height: 64px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 2px solid rgba(16, 185, 129, 0.4);
+  color: #34d399;
+  font-size: 2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: var(--space-6) auto 0 auto;
+}
+
+.rejectIcon {
+  width: 64px;
+  height: 64px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 2px solid rgba(239, 68, 68, 0.4);
+  color: #f87171;
+  font-size: 2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: var(--space-6) auto 0 auto;
+}
+
+.reasonAlert {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin-top: var(--space-4);
+  text-align: left;
+}
+
+/* FLOATING SANDBOX DEVELOPER CONSOLE */
+.simulatorConsole {
+  width: 100%;
+  margin-top: var(--space-6);
+  background: rgba(14, 5, 19, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-5);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  box-sizing: border-box;
+}
+
+.consoleHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.consoleHeader p {
+  margin: 0;
+}
+
+/* Mobile intent pay link styles */
+.upiBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  background: linear-gradient(135deg, var(--checkout-brand-color) 0%, rgba(28, 11, 44, 1) 100%);
+  color: #fff !important;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: transform 0.15s ease;
+}
+
+.upiBtn:active {
+  transform: scale(0.98);
+}
+
+/* ERROR PAGES */
+.errorContainer {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: radial-gradient(circle at 10% 20%, rgba(14, 5, 19, 1) 0%, rgba(28, 11, 44, 1) 45%, rgba(13, 4, 18, 1) 90%);
+  color: var(--foreground);
+}
+
+.errorCard {
+  background: rgba(28, 11, 44, 0.45);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 20px 48px rgba(0,0,0,0.4);
+}
+
+.errorCard h2 {
+  margin: 0 0 var(--space-3) 0;
+  font-size: 1.5rem;
+  color: #fff;
+}
+
+.errorCard p {
+  color: var(--muted-foreground);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Responsive queries */
+@media (max-width: 600px) {
+  .mobileAction {
+    display: block; /* Visible on mobile */
+    margin: var(--space-4) 0;
+  }
+  
+  .qrBlock {
+    display: none; /* Hide QR code on mobile devices */
+  }
+}
