@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * HollowPay — Standard API Route Wrapper
  *
@@ -17,7 +18,8 @@ import {
 } from '@/lib/services/idempotency.service';
 
 export type HandlerFunction = (
-  req: NextRequest
+  req: NextRequest,
+  ...args: any[]
 ) => Promise<NextResponse> | NextResponse;
 
 interface RouteHandlerOptions {
@@ -45,7 +47,7 @@ export function wrapRouteHandler(
 ) {
   const authRequired = options.authRequired ?? true;
 
-  return async (req: NextRequest): Promise<NextResponse> => {
+  return async (req: NextRequest, ...args: any[]): Promise<NextResponse> => {
     const requestId = generateRequestId();
     const headers = req.headers;
     const ipAddress = headers.get('x-forwarded-for') ?? undefined;
@@ -96,7 +98,7 @@ export function wrapRouteHandler(
               }
 
               try {
-                const response = await handler(req);
+                const response = await handler(req, ...args);
                 
                 // Read and cache the response body
                 let responseBody: unknown = null;
@@ -138,12 +140,12 @@ export function wrapRouteHandler(
             }
 
             // Normal authenticated execution (GET, etc. or no Idempotency-Key)
-            return await handler(req);
+            return await handler(req, ...args);
           });
         }
 
         // Run handler without auth (e.g. webhook endpoint, public checkout)
-        return await handler(req);
+        return await handler(req, ...args);
       } catch (error) {
         return handleApiError(error);
       }
