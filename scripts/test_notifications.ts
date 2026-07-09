@@ -80,6 +80,10 @@ async function runTests() {
       link: '/dashboard/test-link',
     });
 
+    if (!notif1) {
+      throw new Error('Expected notification to be created successfully.');
+    }
+
     console.log(`- Created notification with publicId: ${notif1.publicId}`);
     if (!notif1.publicId.startsWith('notif_hp_')) {
       throw new Error(`Expected prefix notif_hp_ but got: ${notif1.publicId}`);

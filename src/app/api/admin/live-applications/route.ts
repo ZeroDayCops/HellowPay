@@ -8,12 +8,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { db } from '@/lib/db';
 import {
-  userProfiles,
   liveModeApplications,
   projects,
   businesses,
+  userProfiles,
 } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
+import { checkAdminPrivilege } from '@/lib/auth/admin';
 
 export async function GET(req: NextRequest) {
   const { userId: clerkUserId } = await auth();
@@ -23,21 +24,8 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // 1. Resolve user profile
-    const profile = await db
-      .select()
-      .from(userProfiles)
-      .where(eq(userProfiles.clerkUserId, clerkUserId))
-      .limit(1);
-
-    if (profile.length === 0) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-    }
-
-    const user = profile[0];
-
-    // 2. Role Gate: Enforce admin status
-    const isAdmin = user.isAdmin || user.email === 'zerodaycops@gmail.com';
+    // 1. Admin Gate
+    const isAdmin = await checkAdminPrivilege(clerkUserId);
     if (!isAdmin) {
       return NextResponse.json({ error: 'Access denied: Requires administrator privilege.' }, { status: 403 });
     }

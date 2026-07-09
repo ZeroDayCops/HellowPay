@@ -33,7 +33,7 @@ interface PendingInvite {
 }
 
 export default function GeneralSettingsPage() {
-  const [activeTab, setActiveTab] = useState<'general' | 'team'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'team' | 'notifications'>('general');
   const [loading, setLoading] = useState(true);
   
   // General settings state
@@ -47,6 +47,9 @@ export default function GeneralSettingsPage() {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [invitations, setInvitations] = useState<PendingInvite[]>([]);
   const [currentUserRole, setCurrentUserRole] = useState<string>('viewer');
+
+  // User Notification Preferences state
+  const [prefList, setPrefList] = useState<any[]>([]);
   
   // Form submission / operations state
   const [saving, setSaving] = useState(false);
@@ -85,6 +88,13 @@ export default function GeneralSettingsPage() {
         setInvitations(teamJson.invitations || []);
         setCurrentUserRole(teamJson.currentUserRole || 'viewer');
       }
+
+      // Fetch user notification preferences
+      const notifRes = await fetch('/api/dashboard/settings/notifications');
+      const notifJson = await notifRes.json();
+      if (notifRes.ok) {
+        setPrefList(notifJson.preferences || []);
+      }
     } catch (err) {
       console.error('Failed to load project settings:', err);
     } finally {
@@ -116,6 +126,39 @@ export default function GeneralSettingsPage() {
       setMessage({ type: 'error', text: 'Network error. Please try again.' });
     } finally {
       setRequestingLive(false);
+    }
+  };
+
+  // Toggle individual notification preferences
+  const handleTogglePreference = async (notificationType: string, enabled: boolean) => {
+    try {
+      const res = await fetch('/api/dashboard/settings/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          notificationType,
+          channel: 'in_app',
+          enabled,
+        }),
+      });
+      if (res.ok) {
+        setPrefList((prev) => {
+          const existingIndex = prev.findIndex((p) => p.notificationType === notificationType);
+          if (existingIndex > -1) {
+            const next = [...prev];
+            next[existingIndex] = { ...next[existingIndex], enabled };
+            return next;
+          } else {
+            return [...prev, { notificationType, channel: 'in_app', enabled }];
+          }
+        });
+      } else {
+        const json = await res.json();
+        setMessage({ type: 'error', text: json.error || 'Failed to update notification settings.' });
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage({ type: 'error', text: 'Connection failure.' });
     }
   };
 
@@ -276,6 +319,21 @@ export default function GeneralSettingsPage() {
               }}
             >
               Team Members
+            </button>
+            <button
+              onClick={() => { setActiveTab('notifications'); setMessage(null); }}
+              style={{
+                padding: '8px 16px',
+                background: 'none',
+                border: 'none',
+                borderBottom: activeTab === 'notifications' ? '2px solid var(--accent)' : 'none',
+                color: activeTab === 'notifications' ? 'var(--foreground)' : 'var(--foreground-muted)',
+                fontWeight: '600',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+              }}
+            >
+              Notifications
             </button>
           </div>
 
@@ -547,6 +605,120 @@ export default function GeneralSettingsPage() {
                 </div>
               )}
 
+            </div>
+          )}
+
+          {/* TAB 3: Notifications settings */}
+          {activeTab === 'notifications' && (
+            <div className={styles.card}>
+              <div className={styles.sectionTitle}>In-App Notifications Channel</div>
+              <p className="body-sm text-muted-foreground mt-1 mb-6">
+                Enable or disable in-app notification alerts for specific events across your projects.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {[
+                  {
+                    type: 'claim.created',
+                    label: 'Payment Claim Submissions',
+                    description: 'Get notified when customers submit a payment claim or UTR reference for verification.',
+                  },
+                  {
+                    type: 'api_key.created',
+                    label: 'API Key Generation / Revocation',
+                    description: 'Get notified when developers generate or revoke API credentials for your project.',
+                  },
+                  {
+                    type: 'live_mode.approved',
+                    label: 'Live Mode Compliance Approved',
+                    description: 'Get notified when administrators approve your compliance request to activate live payments.',
+                  },
+                  {
+                    type: 'live_mode.rejected',
+                    label: 'Live Mode Compliance Rejected / Suspended',
+                    description: 'Get notified when administrators reject or suspend your live mode capabilities.',
+                  },
+                  {
+                    type: 'suspicious_activity',
+                    label: 'Fraud & Security Risk Warnings',
+                    description: 'Get notified when the risk engine flags duplicate UTR attempts or client IP velocity abuse.',
+                  },
+                  {
+                    type: 'webhook.failed',
+                    label: 'Webhook Delivery Failures',
+                    description: 'Get notified when system endpoints fail to deliver checkout event callbacks to your servers.',
+                  },
+                ].map((item) => {
+                  const pref = prefList.find((p) => p.notificationType === item.type && p.channel === 'in_app');
+                  const isEnabled = pref ? pref.enabled : true; // Default to true if not defined
+
+                  return (
+                    <div
+                      key={item.type}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: 16,
+                        border: '1px solid var(--border)',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'var(--surface-subtle)',
+                      }}
+                    >
+                      <div>
+                        <h4 className="body-sm font-semibold">{item.label}</h4>
+                        <p className="caption text-muted-foreground mt-1">{item.description}</p>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <span className="caption mr-2 font-semibold" style={{ minWidth: 60, textAlign: 'right' }}>
+                          {isEnabled ? 'ENABLED' : 'MUTED'}
+                        </span>
+                        {/* Switch input */}
+                        <label
+                          style={{
+                            position: 'relative',
+                            display: 'inline-block',
+                            width: 44,
+                            height: 24,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isEnabled}
+                            onChange={(e) => handleTogglePreference(item.type, e.target.checked)}
+                            style={{ opacity: 0, width: 0, height: 0 }}
+                          />
+                          <span
+                            style={{
+                              position: 'absolute',
+                              inset: 0,
+                              backgroundColor: isEnabled ? '#10b981' : 'var(--border)',
+                              borderRadius: 24,
+                              transition: '.3s',
+                            }}
+                          >
+                            <span
+                              style={{
+                                position: 'absolute',
+                                content: '""',
+                                height: 18,
+                                width: 18,
+                                left: isEnabled ? 23 : 3,
+                                bottom: 3,
+                                backgroundColor: '#fff',
+                                borderRadius: '50%',
+                                transition: '.3s',
+                              }}
+                            />
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 

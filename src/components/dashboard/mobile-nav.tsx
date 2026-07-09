@@ -31,6 +31,8 @@ const devItems = [
   { label: 'API Logs', href: '/dashboard/developers/api-logs', icon: '📝' },
   { label: 'Audit Logs', href: '/dashboard/developers/audit-logs', icon: '🛡️' },
   { label: 'Risk & Fraud', href: '/dashboard/developers/risk-events', icon: '🚨' },
+  { label: 'Diagnostics', href: '/dashboard/developers/diagnostics', icon: '🛡️' },
+  { label: 'API Playground', href: '/dashboard/developers/playground', icon: '💻' },
   { label: 'Documentation', href: '/docs', icon: '📖' },
 ];
 

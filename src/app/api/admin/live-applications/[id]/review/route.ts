@@ -12,10 +12,12 @@ import {
   liveModeApplications,
   projects,
   auditLogs,
+  businesses,
 } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { sendMerchantNotification } from '@/lib/services/notification.service';
+import { checkAdminPrivilege, getAdminProfile } from '@/lib/auth/admin';
 
 export async function POST(
   req: NextRequest,
@@ -52,22 +54,9 @@ export async function POST(
   }
 
   try {
-    // 1. Resolve user profile
-    const profile = await db
-      .select()
-      .from(userProfiles)
-      .where(eq(userProfiles.clerkUserId, clerkUserId))
-      .limit(1);
-
-    if (profile.length === 0) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-    }
-
-    const adminUser = profile[0];
-
-    // 2. Role Gate: Enforce admin status
-    const isAdmin = adminUser.isAdmin || adminUser.email === 'zerodaycops@gmail.com';
-    if (!isAdmin) {
+    // 1. Admin Gate
+    const adminUser = await getAdminProfile(clerkUserId);
+    if (!adminUser || !adminUser.isAdmin) {
       return NextResponse.json({ error: 'Access denied: Requires administrator privilege.' }, { status: 403 });
     }
 
@@ -122,16 +111,19 @@ export async function POST(
     });
 
     // 5. Query workspaceId for audit logging
-    const project = await db
-      .select()
+    const projectWorkspace = await db
+      .select({ workspaceId: businesses.workspaceId })
       .from(projects)
+      .innerJoin(businesses, eq(projects.businessId, businesses.id))
       .where(eq(projects.id, app.projectId))
       .limit(1);
+
+    const actualWorkspaceId = projectWorkspace[0]?.workspaceId ?? 1;
 
     // 6. Write to immutable audit logs
     await db.insert(auditLogs).values({
       publicId: `aud_hp_${nanoid(16)}`,
-      workspaceId: project[0] ? project[0].businessId : 1, // fallback to standard workspace
+      workspaceId: actualWorkspaceId,
       actorId: adminUser.id,
       action: `live_mode_${targetStatus}`,
       targetType: 'project',

@@ -6,7 +6,7 @@
  */
 
 import { db } from '@/lib/db';
-import { apiKeys, projects, businesses } from '@/lib/db/schema';
+import { apiKeys, apiKeyUsage, projects, businesses } from '@/lib/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
 import { hashApiKey, isValidApiKeyFormat } from '@/lib/crypto/api-key-generator';
 import { UnauthorizedError } from '@/lib/api/errors';
@@ -79,6 +79,11 @@ export async function authenticateApiKey(
     throw new UnauthorizedError('Live Mode access is disabled or unapproved. Request compliance verification in Settings.');
   }
 
+  // Asynchronously register usage statistics in background
+  updateKeyUsage(authData.apiKeyId).catch((err) => {
+    console.error('Failed to update API key activity in background:', err);
+  });
+
   return {
     projectId: authData.projectId,
     workspaceId: authData.workspaceId,
@@ -86,6 +91,53 @@ export async function authenticateApiKey(
     apiKeyId: authData.apiKeyId,
     apiKeyPrefix: authData.apiKeyPrefix,
   };
+}
+
+/**
+ * Asynchronously logs key usage and daily call volumes.
+ */
+async function updateKeyUsage(apiKeyId: number) {
+  const today = new Date().toISOString().substring(0, 10);
+  try {
+    await db.transaction(async (tx) => {
+      // 1. Set key last used timestamp
+      await tx
+        .update(apiKeys)
+        .set({ lastUsedAt: new Date() })
+        .where(eq(apiKeys.id, apiKeyId));
+
+      // 2. Increment daily request count
+      const usageList = await tx
+        .select()
+        .from(apiKeyUsage)
+        .where(
+          and(
+            eq(apiKeyUsage.apiKeyId, apiKeyId),
+            eq(apiKeyUsage.date, today)
+          )
+        )
+        .limit(1);
+
+      if (usageList.length > 0) {
+        await tx
+          .update(apiKeyUsage)
+          .set({
+            requestCount: usageList[0].requestCount + 1,
+            lastUsedAt: new Date(),
+          })
+          .where(eq(apiKeyUsage.id, usageList[0].id));
+      } else {
+        await tx.insert(apiKeyUsage).values({
+          apiKeyId,
+          date: today,
+          requestCount: 1,
+          lastUsedAt: new Date(),
+        });
+      }
+    });
+  } catch (error) {
+    console.error('Failed to update API key telemetry database:', error);
+  }
 }
 
 /**

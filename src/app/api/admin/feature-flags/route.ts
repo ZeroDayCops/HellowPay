@@ -7,22 +7,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { db } from '@/lib/db';
-import { userProfiles } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
+import { checkAdminPrivilege } from '@/lib/auth/admin';
 import { listFeatureFlags, setFeatureFlag } from '@/lib/services/feature-flag.service';
 
-// Administrative Privilege Gate helper
-async function checkAdminPrivilege(clerkUserId: string): Promise<boolean> {
-  const profile = await db
-    .select()
-    .from(userProfiles)
-    .where(eq(userProfiles.clerkUserId, clerkUserId))
-    .limit(1);
 
-  if (profile.length === 0) return false;
-  return profile[0].isAdmin || profile[0].email === 'zerodaycops@gmail.com';
-}
 
 export async function GET(req: NextRequest) {
   const { userId: clerkUserId } = await auth();

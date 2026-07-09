@@ -20,6 +20,7 @@ interface ApiKey {
   lastFour: string;
   createdAt: string;
   lastUsedAt: string | null;
+  scopes: string | null;
 }
 
 export default function ApiKeysConsole() {
@@ -32,10 +33,103 @@ export default function ApiKeysConsole() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [name, setName] = useState('');
   const [keyType, setKeyType] = useState<'publishable' | 'secret'>('secret');
+  const [scopesSelection, setScopesSelection] = useState<string[]>(['read:orders', 'write:orders']);
   
   const [saving, setSaving] = useState(false);
   const [revealedSecret, setRevealedSecret] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Usage telemetry states
+  const [expandedKeyId, setExpandedKeyId] = useState<number | null>(null);
+  const [keyUsage, setKeyUsage] = useState<any>(null);
+  const [loadingUsage, setLoadingUsage] = useState(false);
+
+  const handleToggleUsage = async (keyId: number, prefix: string) => {
+    if (expandedKeyId === keyId) {
+      setExpandedKeyId(null);
+      setKeyUsage(null);
+      return;
+    }
+    setExpandedKeyId(keyId);
+    setLoadingUsage(true);
+    try {
+      const res = await fetch(`/api/dashboard/api-keys/${prefix}/usage`);
+      const json = await res.json();
+      if (res.ok) {
+        setKeyUsage(json.usage);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingUsage(false);
+    }
+  };
+
+  const formatLastActive = (timestampStr: string | null) => {
+    if (!timestampStr) return 'Never';
+    const date = new Date(timestampStr);
+    const diffMs = Date.now() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
+  };
+
+  const renderUsageChart = (data: Array<{ label: string; count: number }>) => {
+    const maxVal = Math.max(...data.map(d => d.count), 5);
+    const width = 500;
+    const height = 120;
+    const padding = 20;
+
+    const points = data.map((d, index) => {
+      const x = padding + (index * (width - padding * 2)) / (data.length - 1);
+      const y = height - padding - (d.count * (height - padding * 2)) / maxVal;
+      return { x, y };
+    });
+
+    const pathD = points.reduce((acc, p, index) => {
+      return acc + `${index === 0 ? 'M' : 'L'} ${p.x} ${p.y}`;
+    }, '');
+
+    const areaD = pathD + ` L ${points[points.length - 1].x} ${height - padding} L ${points[0].x} ${height - padding} Z`;
+
+    return (
+      <div style={{ padding: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', border: '1px solid var(--border)', marginTop: 8 }}>
+        <div className="caption text-muted-foreground mb-2" style={{ fontWeight: 'semibold' }}>📊 Daily API Call Activity (Last 7 Days)</div>
+        <div style={{ position: 'relative', width: '100%', height: height }}>
+          <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: '100%' }}>
+            <line x1={padding} y1={padding} x2={width - padding} y2={padding} stroke="var(--border)" strokeOpacity={0.2} strokeDasharray="3 3" />
+            <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="var(--border)" strokeOpacity={0.4} />
+            <path d={areaD} fill="url(#gradient-usage)" opacity={0.1} />
+            <path d={pathD} fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            {points.map((p, i) => (
+              <g key={i}>
+                <circle cx={p.x} cy={p.y} r={3} fill="var(--accent)" />
+                <text x={p.x} y={p.y - 8} textAnchor="middle" fontSize={9} fill="var(--foreground)" fontFamily="var(--font-mono)">
+                  {data[i].count}
+                </text>
+              </g>
+            ))}
+            <defs>
+              <linearGradient id="gradient-usage" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--accent)" />
+                <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', paddingLeft: padding, paddingRight: padding, marginTop: 4 }}>
+          {data.map((d, i) => (
+            <span key={i} className="caption text-muted-foreground" style={{ fontSize: '0.65rem' }}>{d.label}</span>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   // Fetch API keys
   const fetchKeys = useCallback(async () => {
@@ -73,6 +167,7 @@ export default function ApiKeysConsole() {
           name: name.trim(),
           key_type: keyType,
           environment,
+          scopes: scopesSelection,
         }),
       });
 
@@ -80,6 +175,7 @@ export default function ApiKeysConsole() {
       if (res.ok) {
         setRevealedSecret(json.raw_key);
         setName('');
+        setScopesSelection(['read:orders', 'write:orders']);
         // Refresh keys list
         await fetchKeys();
       } else {
@@ -116,6 +212,24 @@ export default function ApiKeysConsole() {
     navigator.clipboard.writeText(revealedSecret);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Helper to render scopes
+  const renderScopes = (scopesStr: string | null) => {
+    try {
+      const arr: string[] = JSON.parse(scopesStr || '["*"]');
+      return (
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          {arr.map((s) => (
+            <Badge key={s} variant="default" style={{ fontSize: '0.65rem', textTransform: 'none' }}>
+              {s}
+            </Badge>
+          ))}
+        </div>
+      );
+    } catch {
+      return <span className="caption text-muted-foreground">—</span>;
+    }
   };
 
   // Separate keys by type
@@ -160,26 +274,61 @@ export default function ApiKeysConsole() {
                   <tr>
                     <th>Name</th>
                     <th>Token Prefix</th>
+                    <th>Scopes</th>
+                    <th>Last Active</th>
                     <th>Created At</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {secretKeys.map((k) => (
-                    <tr key={k.id}>
-                      <td className="body-sm" style={{ fontWeight: '600' }}>{k.name}</td>
-                      <td>
-                        <code className="monospace">{k.prefix}_***_{k.lastFour}</code>
-                      </td>
-                      <td className="caption text-muted-foreground">
-                        {new Date(k.createdAt).toLocaleDateString()}
-                      </td>
-                      <td>
-                        <button className={styles.btnRevoke} onClick={() => handleRevokeKey(k.id)}>
-                          Revoke
-                        </button>
-                      </td>
-                    </tr>
+                    <React.Fragment key={k.id}>
+                      <tr>
+                        <td className="body-sm" style={{ fontWeight: '600' }}>{k.name}</td>
+                        <td>
+                          <code className="monospace">{k.prefix}_***_{k.lastFour}</code>
+                        </td>
+                        <td>
+                          {renderScopes(k.scopes)}
+                        </td>
+                        <td className="caption text-muted-foreground monospace">
+                          {formatLastActive(k.lastUsedAt)}
+                        </td>
+                        <td className="caption text-muted-foreground">
+                          {new Date(k.createdAt).toLocaleDateString()}
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <Button
+                              variant="secondary"
+                              style={{ padding: '4px 8px', fontSize: '0.7rem' }}
+                              onClick={() => handleToggleUsage(k.id, k.prefix)}
+                            >
+                              {expandedKeyId === k.id ? 'Hide Stats' : '📊 Stats'}
+                            </Button>
+                            <button className={styles.btnRevoke} onClick={() => handleRevokeKey(k.id)}>
+                              Revoke
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {expandedKeyId === k.id && (
+                        <tr>
+                          <td colSpan={6} style={{ padding: '0px 16px 16px 16px', background: 'rgba(0,0,0,0.05)' }}>
+                            {loadingUsage ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '16px' }}>
+                                <div className={styles.spinner} style={{ width: 14, height: 14, margin: 0 }}></div>
+                                <span className="caption text-muted-foreground">Loading key usage stats...</span>
+                              </div>
+                            ) : keyUsage ? (
+                              renderUsageChart(keyUsage)
+                            ) : (
+                              <span className="caption text-muted-foreground">No usage details found.</span>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>
@@ -207,26 +356,61 @@ export default function ApiKeysConsole() {
                   <tr>
                     <th>Name</th>
                     <th>Token Prefix</th>
+                    <th>Scopes</th>
+                    <th>Last Active</th>
                     <th>Created At</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {publishableKeys.map((k) => (
-                    <tr key={k.id}>
-                      <td className="body-sm" style={{ fontWeight: '600' }}>{k.name}</td>
-                      <td>
-                        <code className="monospace">{k.prefix}_***_{k.lastFour}</code>
-                      </td>
-                      <td className="caption text-muted-foreground">
-                        {new Date(k.createdAt).toLocaleDateString()}
-                      </td>
-                      <td>
-                        <button className={styles.btnRevoke} onClick={() => handleRevokeKey(k.id)}>
-                          Revoke
-                        </button>
-                      </td>
-                    </tr>
+                    <React.Fragment key={k.id}>
+                      <tr>
+                        <td className="body-sm" style={{ fontWeight: '600' }}>{k.name}</td>
+                        <td>
+                          <code className="monospace">{k.prefix}_***_{k.lastFour}</code>
+                        </td>
+                        <td>
+                          {renderScopes(k.scopes)}
+                        </td>
+                        <td className="caption text-muted-foreground monospace">
+                          {formatLastActive(k.lastUsedAt)}
+                        </td>
+                        <td className="caption text-muted-foreground">
+                          {new Date(k.createdAt).toLocaleDateString()}
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <Button
+                              variant="secondary"
+                              style={{ padding: '4px 8px', fontSize: '0.7rem' }}
+                              onClick={() => handleToggleUsage(k.id, k.prefix)}
+                            >
+                              {expandedKeyId === k.id ? 'Hide Stats' : '📊 Stats'}
+                            </Button>
+                            <button className={styles.btnRevoke} onClick={() => handleRevokeKey(k.id)}>
+                              Revoke
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {expandedKeyId === k.id && (
+                        <tr>
+                          <td colSpan={6} style={{ padding: '0px 16px 16px 16px', background: 'rgba(0,0,0,0.05)' }}>
+                            {loadingUsage ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '16px' }}>
+                                <div className={styles.spinner} style={{ width: 14, height: 14, margin: 0 }}></div>
+                                <span className="caption text-muted-foreground">Loading key usage stats...</span>
+                              </div>
+                            ) : keyUsage ? (
+                              renderUsageChart(keyUsage)
+                            ) : (
+                              <span className="caption text-muted-foreground">No usage details found.</span>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>
@@ -289,6 +473,35 @@ export default function ApiKeysConsole() {
                     <option value="secret">Secret Key (sk_...)</option>
                     <option value="publishable">Publishable Key (pk_...)</option>
                   </select>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label>Select API Permission Scopes</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' }}>
+                    {[
+                      { id: 'read:orders', desc: 'Read orders list and details' },
+                      { id: 'write:orders', desc: 'Create and cancel orders' },
+                      { id: 'read:claims', desc: 'Fetch customer payment claims list' },
+                      { id: 'write:claims', desc: 'Resolve or reject payment claims' },
+                      { id: 'read:webhooks', desc: 'Inspect webhook delivery log history' },
+                      { id: 'write:webhooks', desc: 'Configure or test webhook endpoints' }
+                    ].map((s) => (
+                      <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.8rem' }}>
+                        <input
+                          type="checkbox"
+                          checked={scopesSelection.includes(s.id)}
+                          onChange={() => {
+                            setScopesSelection((prev) =>
+                              prev.includes(s.id) ? prev.filter((x) => x !== s.id) : [...prev, s.id]
+                            );
+                          }}
+                        />
+                        <span>
+                          <code className="monospace">{s.id}</code> — {s.desc}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
 
                 <div className={styles.modalActions}>

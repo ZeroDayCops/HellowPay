@@ -117,6 +117,17 @@ export default function ClaimsDashboardPage() {
         </div>
         <div className={styles.headerActions}>
           <button
+            className={styles.refreshBtn}
+            onClick={() => {
+              const a = document.createElement('a');
+              a.href = `/api/dashboard/export/claims?env=${environment}`;
+              a.download = '';
+              a.click();
+            }}
+          >
+            📥 Export CSV
+          </button>
+          <button
             className={`${styles.refreshBtn} ${refreshing ? styles.spinning : ''}`}
             onClick={() => fetchClaims(true)}
             disabled={refreshing}

@@ -73,11 +73,15 @@ const handlePublicCheckout = async (
       .where(eq(paymentPages.id, page.id))
       .limit(1);
 
-    // Let's query the projects table to find the workspace ID
-    const { projects: projTable } = await import('@/lib/db/schema');
+    // Let's query the projects table joined with businesses to find the workspace ID
+    const { projects: projTable, businesses: bizTable } = await import('@/lib/db/schema');
     const projectDb = await db
-      .select()
+      .select({
+        projectId: projTable.id,
+        workspaceId: bizTable.workspaceId,
+      })
       .from(projTable)
+      .innerJoin(bizTable, eq(projTable.businessId, bizTable.id))
       .where(eq(projTable.id, page.projectId))
       .limit(1);
 
@@ -85,16 +89,12 @@ const handlePublicCheckout = async (
       return NextResponse.json({ error: 'Project configurations mismatch.' }, { status: 500 });
     }
 
-    const workspaceId = projectDb[0].businessId; // Note: In schema, businessId corresponds to workspace context or acts as tenant key. Let's verify businessId.
-    // In products.ts:
-    // projectId: integer('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' })
-    // In orders.ts:
-    // workspaceId is used to scope logs.
+    const workspaceId = projectDb[0].workspaceId;
 
     // 3. Create the order
     const order = await createOrder({
       projectId: page.projectId,
-      workspaceId: projectDb[0].businessId, // Scope workspace id correctly
+      workspaceId,
       environment,
       amountMinor: page.amountMinor,
       currency: page.currency,

@@ -28,10 +28,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <ClerkProvider>
-          {process.env.NODE_ENV === 'development' ? <ReticleDev /> : null}
+          {/* {process.env.NODE_ENV === 'development' ? <ReticleDev /> : null} */}
           {children}
         </ClerkProvider>
       </body>

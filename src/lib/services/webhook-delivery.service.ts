@@ -18,6 +18,7 @@ import { generatePublicId } from '@/lib/crypto/id-generator';
 import { sha256, generateToken } from '@/lib/crypto/hash';
 import { signWebhookPayload } from '@/lib/crypto/webhook-signer';
 import { sendMerchantNotification, sendFounderNotification } from '@/lib/services/notification.service';
+import { expireAbandonedCheckouts } from './checkout.service';
 
 // Supported event types
 export const SUPPORTED_WEBHOOK_EVENTS = [
@@ -415,6 +416,12 @@ export function startWebhookScheduler() {
       const result = await processPendingDeliveries(15);
       if (result.processed > 0) {
         console.log(`[Webhook Scheduler] Processed ${result.processed} webhook deliveries (successes: ${result.successes}, failures: ${result.failures})`);
+      }
+      
+      // Clean up and auto-expire open checkouts past validity duration
+      const expiryResult = await expireAbandonedCheckouts();
+      if (expiryResult.expiredCount > 0) {
+        console.log(`[Webhook Scheduler] Expired ${expiryResult.expiredCount} abandoned checkout sessions.`);
       }
     } catch (err) {
       console.error('[Webhook Scheduler] Error during background polling execution:', err);

@@ -87,9 +87,22 @@ export default function PaymentsListConsole() {
             Audit and verify incoming buyer UPI transaction claims and status changes.
           </p>
         </div>
-        <Button variant="secondary" onClick={fetchPayments}>
-          🔄 Refresh
-        </Button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              const a = document.createElement('a');
+              a.href = `/api/dashboard/export/payments?env=${environment}`;
+              a.download = '';
+              a.click();
+            }}
+          >
+            📥 Export CSV
+          </Button>
+          <Button variant="secondary" onClick={fetchPayments}>
+            🔄 Refresh
+          </Button>
+        </div>
       </div>
 
       <div className={styles.tableCard}>

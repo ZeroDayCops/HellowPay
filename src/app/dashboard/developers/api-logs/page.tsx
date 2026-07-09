@@ -34,6 +34,7 @@ export default function ApiLogsDashboardPage() {
   const [logs, setLogs] = useState<ApiRequestLog[]>([]);
   const [selectedLog, setSelectedLog] = useState<ApiRequestLog | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [copiedCurl, setCopiedCurl] = useState(false);
 
   // Fetch API Request logs
   const fetchLogs = useCallback(async () => {
@@ -288,8 +289,22 @@ export default function ApiLogsDashboardPage() {
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
-              <Button onClick={() => setSelectedLog(null)}>Close Inspector</Button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  const host = typeof window !== 'undefined' ? window.location.origin : 'https://api.hollowpay.com';
+                  const curlCmd = `curl -X ${selectedLog.method} "${host}${selectedLog.path}" \\\n  -H "Authorization: Bearer ${selectedLog.apiKeyPrefix || 'hp_test_sk'}_••••" \\\n  -H "Content-Type: application/json"${
+                    selectedLog.requestBody ? ` \\\n  -d '${JSON.stringify(selectedLog.requestBody)}'` : ''
+                  }`;
+                  navigator.clipboard.writeText(curlCmd);
+                  setCopiedCurl(true);
+                  setTimeout(() => setCopiedCurl(false), 2000);
+                }}
+              >
+                {copiedCurl ? '✔️ Copied!' : '📋 Copy as curl'}
+              </Button>
+              <Button onClick={() => { setSelectedLog(null); setCopiedCurl(false); }}>Close Inspector</Button>
             </div>
           </div>
         </div>

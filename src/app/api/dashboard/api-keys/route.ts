@@ -98,6 +98,7 @@ export async function POST(req: NextRequest) {
     name: string;
     key_type: 'publishable' | 'secret';
     environment: 'test' | 'live';
+    scopes?: string[];
   };
 
   try {
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON request body.' }, { status: 400 });
   }
 
-  const { name, key_type, environment } = body;
+  const { name, key_type, environment, scopes } = body;
 
   if (!name || !key_type || !environment) {
     return NextResponse.json({ error: 'Name, key_type, and environment are required.' }, { status: 400 });
@@ -169,7 +170,7 @@ export async function POST(req: NextRequest) {
         prefix: generated.prefix,
         lastFour: generated.lastFour,
         keyHash: generated.keyHash,
-        scopes: JSON.stringify(['*']), // default wildcard scopes
+        scopes: JSON.stringify(scopes && scopes.length > 0 ? scopes : ['*']),
         name: name.trim(),
         createdBy: profile[0].id,
       })

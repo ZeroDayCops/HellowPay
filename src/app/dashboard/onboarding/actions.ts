@@ -24,6 +24,7 @@ import {
 import { generatePublicId } from '@/lib/crypto/id-generator';
 import { generateApiKey } from '@/lib/crypto/api-key-generator';
 import { eq } from 'drizzle-orm';
+import { SUPERADMIN_EMAILS } from '@/lib/auth/admin';
 
 export interface OnboardingData {
   workspaceName: string;
@@ -60,14 +61,15 @@ export async function submitOnboarding(data: OnboardingData) {
       let internalUserId: number;
 
       if (profile.length === 0) {
+        const userEmail = user.emailAddresses[0]?.emailAddress ?? '';
         const [newProfile] = await tx
           .insert(userProfiles)
           .values({
             publicId: generatePublicId('user'),
             clerkUserId,
-            email: user.emailAddresses[0]?.emailAddress ?? '',
+            email: userEmail,
             name: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || 'Merchant User',
-            isAdmin: false,
+            isAdmin: SUPERADMIN_EMAILS.includes(userEmail),
           })
           .returning();
         internalUserId = newProfile.id;
@@ -75,14 +77,25 @@ export async function submitOnboarding(data: OnboardingData) {
         internalUserId = profile[0].id;
       }
 
-      // 2. Create Workspace
+      // 2. Create Workspace (resolving slug conflicts)
+      let resolvedSlug = data.workspaceSlug;
+      const existingWorkspace = await tx
+        .select()
+        .from(workspaces)
+        .where(eq(workspaces.slug, resolvedSlug))
+        .limit(1);
+
+      if (existingWorkspace.length > 0) {
+        resolvedSlug = `${data.workspaceSlug}-${Math.random().toString(36).substring(2, 6)}`;
+      }
+
       const workspacePublicId = generatePublicId('workspace');
       const [workspace] = await tx
         .insert(workspaces)
         .values({
           publicId: workspacePublicId,
           name: data.workspaceName,
-          slug: data.workspaceSlug,
+          slug: resolvedSlug,
         })
         .returning();
 

@@ -66,6 +66,24 @@ export default function WebhooksSettingsPage() {
   // Secret reveal state
   const [createdSecret, setCreatedSecret] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isRotatedSecret, setIsRotatedSecret] = useState(false);
+
+  // Metrics states
+  const [metrics, setMetrics] = useState<{
+    totalAttempts: number;
+    successRate: number;
+    avgLatency: number;
+    failuresCount: number;
+  } | null>(null);
+  const [loadingMetrics, setLoadingMetrics] = useState(false);
+  const [rotating, setRotating] = useState(false);
+
+  // Edit modal states
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editUrl, setEditUrl] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editEvents, setEditEvents] = useState<string[]>([]);
+  const [updating, setUpdating] = useState(false);
 
   // Testing hook state
   const [testing, setTesting] = useState(false);
@@ -77,6 +95,22 @@ export default function WebhooksSettingsPage() {
       latency_ms: number;
       responseExcerpt: string | null;
       errorMessage: string | null;
+    };
+  } | null>(null);
+
+  // Simulator states
+  const [showSimulateModal, setShowSimulateModal] = useState(false);
+  const [simulating, setSimulating] = useState(false);
+  const [selectedSimEvent, setSelectedSimEvent] = useState('claim.created');
+  const [simResult, setSimResult] = useState<{
+    url: string;
+    eventType: string;
+    payload: any;
+    response: {
+      status: number;
+      durationMs: number;
+      body: string;
+      headers: Record<string, string>;
     };
   } | null>(null);
 
@@ -107,6 +141,52 @@ export default function WebhooksSettingsPage() {
       setLoading(false);
     }
   }, [environment, selectedEndpoint?.publicId]);
+
+  // Fetch metrics helper
+  const fetchMetrics = useCallback(async (epId: string) => {
+    setLoadingMetrics(true);
+    try {
+      const res = await fetch(`/api/dashboard/webhooks/${epId}/metrics`);
+      const json = await res.json();
+      if (res.ok) {
+        setMetrics(json.metrics);
+      } else {
+        setMetrics(null);
+      }
+    } catch (err) {
+      console.error('Failed to load webhook metrics:', err);
+      setMetrics(null);
+    } finally {
+      setLoadingMetrics(false);
+    }
+  }, []);
+
+  const handleRotateSecret = async (epId: string) => {
+    if (!confirm('Are you sure you want to rotate the signing secret for this webhook? All client integrations must be updated immediately with the new secret.')) {
+      return;
+    }
+    setRotating(true);
+    try {
+      const res = await fetch(`/api/dashboard/webhooks/${epId}/rotate`, {
+        method: 'POST'
+      });
+      const json = await res.json();
+      if (res.ok) {
+        setCreatedSecret(json.rawSecret);
+        setIsRotatedSecret(true);
+        setShowCreateModal(true);
+        // Refresh endpoints
+        await fetchEndpoints();
+      } else {
+        alert(json.error || 'Failed to rotate webhook secret.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network connection error.');
+    } finally {
+      setRotating(false);
+    }
+  };
 
   // Fetch deliveries logs for selected endpoint
   const fetchDeliveries = useCallback(async (epId: string) => {
@@ -153,11 +233,13 @@ export default function WebhooksSettingsPage() {
   useEffect(() => {
     if (selectedEndpoint) {
       fetchDeliveries(selectedEndpoint.publicId);
+      fetchMetrics(selectedEndpoint.publicId);
       setTestResult(null);
     } else {
       setDeliveries([]);
+      setMetrics(null);
     }
-  }, [selectedEndpoint, fetchDeliveries]);
+  }, [selectedEndpoint, fetchDeliveries, fetchMetrics]);
 
   // Toggle events selection
   const handleEventToggle = (event: string) => {
@@ -237,6 +319,28 @@ export default function WebhooksSettingsPage() {
       console.error('Test payload trigger failed:', err);
     } finally {
       setTesting(false);
+    }
+  };
+
+  // Trigger simulated event delivery request
+  const handleSimulateEvent = async () => {
+    if (!selectedEndpoint) return;
+    setSimulating(true);
+    setSimResult(null);
+    try {
+      const res = await fetch(`/api/dashboard/webhooks/${selectedEndpoint.id}/simulate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: selectedSimEvent }),
+      });
+      const json = await res.json();
+      setSimResult(json);
+      // Refresh deliveries table
+      await fetchDeliveries(selectedEndpoint.publicId);
+    } catch (err) {
+      console.error('Simulation trigger failed:', err);
+    } finally {
+      setSimulating(false);
     }
   };
 
@@ -321,6 +425,45 @@ export default function WebhooksSettingsPage() {
           {selectedEndpoint ? (
             <>
               {/* Endpoint Context Card */}
+              {/* Telemetry Analytics Card */}
+              <div className={styles.detailCard} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                <div className={styles.detailCardTitle}>
+                  <span>📊</span> Delivery Telemetry & Analytics
+                </div>
+                {loadingMetrics ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px' }}>
+                    <div className={styles.spinner} style={{ width: 14, height: 14 }}></div>
+                    <span className="caption text-muted-foreground">Calculating endpoint performance...</span>
+                  </div>
+                ) : metrics ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                    <div style={{ background: 'var(--surface)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                      <span className="caption text-muted-foreground block uppercase" style={{ fontSize: '0.65rem' }}>Success Rate</span>
+                      <div className="h3 font-bold mt-1" style={{ color: metrics.successRate >= 90 ? '#10b981' : '#f59e0b' }}>
+                        {metrics.successRate}%
+                      </div>
+                    </div>
+                    <div style={{ background: 'var(--surface)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                      <span className="caption text-muted-foreground block uppercase" style={{ fontSize: '0.65rem' }}>Avg Latency</span>
+                      <div className="h3 font-bold mt-1 monospace" style={{ color: 'var(--foreground)' }}>
+                        {metrics.avgLatency}ms
+                      </div>
+                    </div>
+                    <div style={{ background: 'var(--surface)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                      <span className="caption text-muted-foreground block uppercase" style={{ fontSize: '0.65rem' }}>Attempts / Failures</span>
+                      <div className="h3 font-bold mt-1" style={{ color: metrics.failuresCount > 0 ? '#ef4444' : 'var(--foreground)' }}>
+                        {metrics.totalAttempts} / {metrics.failuresCount}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="caption text-muted-foreground" style={{ padding: '8px' }}>
+                    No delivery telemetry logged for this endpoint yet.
+                  </div>
+                )}
+              </div>
+
+              {/* Endpoint Context Card */}
               <div className={styles.detailCard}>
                 <div className={styles.detailCardTitle}>
                   <span>⚙️</span> Endpoint Details
@@ -331,18 +474,27 @@ export default function WebhooksSettingsPage() {
                     {selectedEndpoint.url}
                   </code>
                 </div>
-
                 <div className={styles.formGroup}>
                   <label>Webhook Secret Token</label>
-                  <div className={styles.secretBox}>
-                    <span className={styles.secretValue}>
-                      whsec_••••••••••••••••••••••••{selectedEndpoint.secretLastFour}
-                    </span>
-                    <span className="caption text-muted-foreground">(Used for HMAC signature validation)</span>
+                  <div className={styles.secretBox} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span className={styles.secretValue}>
+                        whsec_••••••••••••••••••••••••{selectedEndpoint.secretLastFour}
+                      </span>
+                      <span className="caption text-muted-foreground">(Used for HMAC signature validation)</span>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      onClick={() => handleRotateSecret(selectedEndpoint.publicId)}
+                      disabled={rotating}
+                      style={{ padding: '6px 12px', fontSize: '0.75rem' }}
+                    >
+                      {rotating ? 'Rolling...' : '🔄 Rotate'}
+                    </Button>
                   </div>
                 </div>
 
-                {/* Actions: Test Hook and Delete */}
+                {/* Actions: Test Hook, Simulate, Edit, and Delete */}
                 <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-2)' }}>
                   <Button
                     variant="secondary"
@@ -350,7 +502,29 @@ export default function WebhooksSettingsPage() {
                     disabled={testing}
                     style={{ flex: 1 }}
                   >
-                    {testing ? 'Sending Test…' : '⚡ Send Test Payload'}
+                    {testing ? 'Sending Test…' : '⚡ Send Test'}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setSimResult(null);
+                      setShowSimulateModal(true);
+                    }}
+                    style={{ flex: 1 }}
+                  >
+                    🛠️ Simulate
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setEditUrl(selectedEndpoint.url);
+                      setEditDescription(selectedEndpoint.description || '');
+                      setEditEvents(selectedEndpoint.subscriptions || []);
+                      setShowEditModal(true);
+                    }}
+                    style={{ flex: 1 }}
+                  >
+                    ✏️ Edit Config
                   </Button>
                   <Button
                     variant="secondary"
@@ -502,7 +676,9 @@ export default function WebhooksSettingsPage() {
       {showCreateModal && (
         <div className={styles.modalOverlay}>
           <div className={styles.modal}>
-            <div className={styles.modalTitle}>Configure Webhook Destination</div>
+            <div className={styles.modalTitle}>
+              {isRotatedSecret ? '🔑 Webhook Secret Rotated' : 'Configure Webhook Destination'}
+            </div>
 
             {!createdSecret ? (
               <form onSubmit={handleCreateEndpoint} style={{ display: 'flex', flex: '1', flexDirection: 'column', gap: 'var(--space-4)' }}>
@@ -611,6 +787,7 @@ export default function WebhooksSettingsPage() {
                       setShowCreateModal(false);
                       setCreatedSecret(null);
                       setError(null);
+                      setIsRotatedSecret(false);
                     }}
                   >
                     Close & Done
@@ -636,6 +813,215 @@ export default function WebhooksSettingsPage() {
             <div className={styles.modalActions}>
               <Button onClick={() => setActiveExcerpt(null)}>Close</Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* SIMULATE EVENT MODAL */}
+      {showSimulateModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal} style={{ maxWidth: 700 }}>
+            <div className={styles.modalTitle}>⚡ Simulate Webhook Event Sandbox</div>
+            
+            <div className="body-xs text-muted-foreground mb-4">
+              Select an event trigger type to mock payload generation, sign with endpoint secret, and execute live dispatch to destination.
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>Select Event Type</label>
+              <select
+                value={selectedSimEvent}
+                onChange={(e) => setSelectedSimEvent(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--foreground)',
+                }}
+              >
+                <option value="claim.created">payment_claim.created (UTR Claim Submitted)</option>
+                <option value="claim.confirmed">payment_claim.confirmed (UTR Claim Settled)</option>
+                <option value="claim.rejected">payment_claim.rejected (UTR Claim Rejected)</option>
+              </select>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
+              {/* Payload Preview */}
+              <div className={styles.formGroup}>
+                <label>Event JSON Payload Preview</label>
+                <pre className="monospace" style={{ padding: 12, background: 'var(--surface)', borderRadius: 4, maxHeight: 180, overflowY: 'auto', fontSize: '0.7rem', color: 'var(--foreground-muted)' }}>
+                  {JSON.stringify({
+                    id: 'evt_hp_sim_xxxxxx',
+                    type: selectedSimEvent,
+                    createdAt: new Date().toISOString(),
+                    data: selectedSimEvent === 'claim.created'
+                      ? { claimId: 'clm_hp_sim_9k8L7', orderId: 'ord_hp_sim_123', status: 'pending', amountMinor: 25000 }
+                      : selectedSimEvent === 'claim.confirmed'
+                      ? { claimId: 'clm_hp_sim_9k8L7', orderId: 'ord_hp_sim_123', status: 'confirmed', amountMinor: 25000 }
+                      : { claimId: 'clm_hp_sim_9k8L7', orderId: 'ord_hp_sim_123', status: 'rejected', rejectReason: 'Mismatched payment screenshot' }
+                  }, null, 2)}
+                </pre>
+              </div>
+
+              {/* Execution results */}
+              <div className={styles.formGroup}>
+                <label>HTTP Response Monitor</label>
+                {simulating ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 180, border: '1px dashed var(--border)', borderRadius: 4 }}>
+                    <div className={styles.spinner}></div>
+                    <span className="caption text-muted-foreground mt-2">Executing dispatch...</span>
+                  </div>
+                ) : simResult ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 180, overflowY: 'auto', padding: 8, background: 'var(--surface)', borderRadius: 4, fontSize: '0.7rem' }}>
+                    <div>
+                      <strong>Status:</strong>{' '}
+                      <span style={{ color: simResult.response.status >= 200 && simResult.response.status < 300 ? '#10b981' : '#ef4444' }}>
+                        {simResult.response.status || 'Connection Failed'}
+                      </span>
+                    </div>
+                    <div><strong>Latency:</strong> {simResult.response.durationMs} ms</div>
+                    <div>
+                      <strong>Response Body Excerpt:</strong>
+                      <pre className="monospace mt-1" style={{ padding: 4, background: 'rgba(0,0,0,0.1)', borderRadius: 2, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                        {simResult.response.body || '—'}
+                      </pre>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 180, border: '1px dashed var(--border)', borderRadius: 4, color: 'var(--foreground-muted)', fontSize: '0.75rem' }}>
+                    No simulation executed yet
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className={styles.modalActions} style={{ marginTop: 24 }}>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setShowSimulateModal(false);
+                  setSimResult(null);
+                }}
+                disabled={simulating}
+              >
+                Close Sandbox
+              </Button>
+              <Button onClick={handleSimulateEvent} disabled={simulating}>
+                {simulating ? 'Sending...' : '⚡ Trigger Simulation'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT ENDPOINT MODAL */}
+      {showEditModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal}>
+            <div className={styles.modalTitle}>✏️ Edit Webhook Endpoint</div>
+            
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!selectedEndpoint) return;
+                setUpdating(true);
+                setError(null);
+                try {
+                  const res = await fetch(`/api/dashboard/webhooks/${selectedEndpoint.publicId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      url: editUrl.trim(),
+                      description: editDescription.trim(),
+                      event_types: editEvents
+                    })
+                  });
+                  const json = await res.json();
+                  if (!res.ok) {
+                    throw new Error(json.error || 'Failed to update webhook endpoint.');
+                  }
+                  setShowEditModal(false);
+                  await fetchEndpoints();
+                } catch (err: any) {
+                  setError(err.message || 'An error occurred.');
+                } finally {
+                  setUpdating(false);
+                }
+              }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}
+            >
+              {error && (
+                <div style={{ color: 'var(--danger)', fontSize: '0.8rem', padding: '8px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: 'var(--radius-sm)' }}>
+                  {error}
+                </div>
+              )}
+
+              <div className={styles.formGroup}>
+                <label>Webhook URL</label>
+                <input
+                  type="url"
+                  placeholder="https://api.yourdomain.com/webhooks"
+                  value={editUrl}
+                  onChange={(e) => setEditUrl(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Description (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="E.g. Primary production payments receiver"
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Events Subscriptions</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' }}>
+                  {[
+                    { id: 'payment.confirmed', desc: 'Triggered when customer payment is confirmed settled.' },
+                    { id: 'payment.claim_created', desc: 'Triggered when customer submits payment claim Reference (UTR).' },
+                    { id: 'payment.rejected', desc: 'Triggered when claim manual review fails/rejected.' }
+                  ].map((evt) => (
+                    <label key={evt.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.8rem' }}>
+                      <input
+                        type="checkbox"
+                        checked={editEvents.includes(evt.id)}
+                        onChange={() => {
+                          setEditEvents((prev) =>
+                            prev.includes(evt.id) ? prev.filter((x) => x !== evt.id) : [...prev, evt.id]
+                          );
+                        }}
+                      />
+                      <span>
+                        <code className="monospace">{evt.id}</code> — {evt.desc}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className={styles.modalActions}>
+                <Button
+                  variant="secondary"
+                  type="button"
+                  onClick={() => {
+                    setShowEditModal(false);
+                    setError(null);
+                  }}
+                  disabled={updating}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={updating}>
+                  {updating ? 'Saving…' : 'Save Changes'}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

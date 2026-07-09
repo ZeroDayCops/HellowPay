@@ -7,12 +7,13 @@
  */
 
 import { db } from '@/lib/db';
-import { checkoutSessions, orders, orderEvents, customers } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { checkoutSessions, orders, orderEvents, customers, projects } from '@/lib/db/schema';
+import { eq, and, lte } from 'drizzle-orm';
 import { generateEnvironmentId } from '@/lib/crypto/id-generator';
 import { transitionOrder } from '@/lib/domain/payment-state-machine';
 import { triggerEvent } from './event.service';
 import { createAuditLog } from './audit.service';
+import { getProjectSettings } from './project-settings.service';
 
 export interface CreateCheckoutParams {
   projectId: number;
@@ -54,7 +55,17 @@ export async function createCheckoutSession(params: CreateCheckoutParams) {
   // 2. Perform transition and insert atomically
   const nextStatus = transitionOrder(order.status as any, 'checkout_session_created');
   const sessionPublicId = generateEnvironmentId('checkout_session', params.environment);
-  const expiration = params.expiresAt ?? order.expiresAt ?? new Date(Date.now() + 30 * 60 * 1000);
+
+  // Fetch project public ID to resolve custom settings
+  const projectList = await db
+    .select({ publicId: projects.publicId })
+    .from(projects)
+    .where(eq(projects.id, params.projectId))
+    .limit(1);
+  const projectPublicId = projectList[0]?.publicId || 'default';
+  const settings = getProjectSettings(projectPublicId);
+  const expiryWindowMs = settings.checkoutSessionExpiryMinutes * 60 * 1000;
+  const expiration = params.expiresAt ?? order.expiresAt ?? new Date(Date.now() + expiryWindowMs);
 
   const createdSession = await db.transaction(async (tx) => {
     // Transition Order status
@@ -165,4 +176,94 @@ export async function getCheckoutSessionByPublicId(
       createdAt: order.createdAt,
     },
   };
+}
+
+/**
+ * Automatically clean up and expire abandoned checkout sessions.
+ */
+export async function expireAbandonedCheckouts() {
+  const now = new Date();
+
+  // Find open, expired sessions
+  const expiredSessions = await db
+    .select({
+      session: checkoutSessions,
+      order: orders,
+    })
+    .from(checkoutSessions)
+    .innerJoin(orders, eq(checkoutSessions.orderId, orders.id))
+    .where(
+      and(
+        eq(checkoutSessions.status, 'open'),
+        lte(checkoutSessions.expiresAt, now)
+      )
+    );
+
+  if (expiredSessions.length === 0) {
+    return { expiredCount: 0 };
+  }
+
+  let expiredCount = 0;
+
+  for (const item of expiredSessions) {
+    try {
+      await db.transaction(async (tx) => {
+        // 1. Update checkout session status
+        await tx
+          .update(checkoutSessions)
+          .set({
+            status: 'expired',
+            updatedAt: new Date(),
+          })
+          .where(eq(checkoutSessions.id, item.session.id));
+
+        // 2. Update order status if not terminal
+        if (item.order.status === 'active' || item.order.status === 'created') {
+          await tx
+            .update(orders)
+            .set({
+              status: 'expired',
+              updatedAt: new Date(),
+            })
+            .where(eq(orders.id, item.order.id));
+
+          // Log order event
+          await tx.insert(orderEvents).values({
+            orderId: item.order.id,
+            fromStatus: item.order.status,
+            toStatus: 'expired',
+            actor: 'system',
+            reason: 'Checkout session expired',
+          });
+        }
+      });
+
+      // Trigger event notify
+      await triggerEvent({
+        type: 'checkout.session.expired',
+        projectId: item.session.projectId,
+        environment: item.session.environment as 'test' | 'live',
+        data: {
+          id: item.session.publicId,
+          order_id: item.order.publicId,
+          status: 'expired',
+          expires_at: item.session.expiresAt,
+        },
+      });
+
+      // Audit log
+      await createAuditLog({
+        action: 'checkout.session.expire',
+        targetType: 'checkout_session',
+        targetId: item.session.publicId,
+        workspaceId: item.order.workspaceId,
+      });
+
+      expiredCount++;
+    } catch (err) {
+      console.error(`Failed to expire checkout session: ${item.session.publicId}`, err);
+    }
+  }
+
+  return { expiredCount };
 }

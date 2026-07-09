@@ -12,9 +12,11 @@ import {
   workspaceMembers,
   businesses,
   projects,
+  notificationPreferences,
 } from '@/lib/db/schema';
-import { eq, and, isNull, desc, or } from 'drizzle-orm';
+import { eq, and, isNull, desc, or, inArray } from 'drizzle-orm';
 import { generatePublicId } from '@/lib/crypto/id-generator';
+import { SUPERADMIN_EMAILS } from '@/lib/auth/admin';
 
 export interface CreateNotificationParams {
   userId: number;
@@ -26,8 +28,27 @@ export interface CreateNotificationParams {
 
 /**
  * Creates a single notification record for a user.
+ * Respects user preferences in notification_preferences.
  */
 export async function createNotification(params: CreateNotificationParams) {
+  // Check if user has disabled this notification type for the 'in_app' channel
+  const pref = await db
+    .select()
+    .from(notificationPreferences)
+    .where(
+      and(
+        eq(notificationPreferences.userId, params.userId),
+        eq(notificationPreferences.notificationType, params.type),
+        eq(notificationPreferences.channel, 'in_app')
+      )
+    )
+    .limit(1);
+
+  if (pref.length > 0 && !pref[0].enabled) {
+    // User has opted out of this alert channel/type.
+    return null;
+  }
+
   const publicId = generatePublicId('notification');
   const [notif] = await db
     .insert(notifications)
@@ -99,14 +120,14 @@ export async function sendFounderNotification(
   link?: string
 ) {
   try {
-    // Fetch all admins
+    // Fetch all admins (isAdmin=true OR email in superadmin list)
     const admins = await db
       .select()
       .from(userProfiles)
       .where(
         or(
           eq(userProfiles.isAdmin, true),
-          eq(userProfiles.email, 'zerodaycops@gmail.com')
+          inArray(userProfiles.email, [...SUPERADMIN_EMAILS])
         )
       );
 
@@ -191,3 +212,56 @@ export async function markAllAsRead(userId: number) {
     )
     .returning();
 }
+
+/**
+ * Gets a user's notification preferences
+ */
+export async function getNotificationPreferences(userId: number) {
+  return db
+    .select()
+    .from(notificationPreferences)
+    .where(eq(notificationPreferences.userId, userId));
+}
+
+/**
+ * Upserts a user's notification preference configuration
+ */
+export async function updateNotificationPreference(
+  userId: number,
+  notificationType: string,
+  channel: 'in_app' | 'email',
+  enabled: boolean
+) {
+  const existing = await db
+    .select()
+    .from(notificationPreferences)
+    .where(
+      and(
+        eq(notificationPreferences.userId, userId),
+        eq(notificationPreferences.notificationType, notificationType),
+        eq(notificationPreferences.channel, channel)
+      )
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    const [updated] = await db
+      .update(notificationPreferences)
+      .set({ enabled })
+      .where(eq(notificationPreferences.id, existing[0].id))
+      .returning();
+    return updated;
+  } else {
+    const [inserted] = await db
+      .insert(notificationPreferences)
+      .values({
+        userId,
+        notificationType,
+        channel,
+        enabled,
+      })
+      .returning();
+    return inserted;
+  }
+}
+

@@ -7,22 +7,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { db } from '@/lib/db';
-import { userProfiles } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
 import { getAdminNotes, createAdminNote } from '@/lib/services/admin-note.service';
+import { getAdminProfile } from '@/lib/auth/admin';
 
-async function checkAdminPrivilege(clerkUserId: string): Promise<any> {
-  const profile = await db
-    .select()
-    .from(userProfiles)
-    .where(eq(userProfiles.clerkUserId, clerkUserId))
-    .limit(1);
-
-  if (profile.length === 0) return null;
-  const isSuper = profile[0].isAdmin || profile[0].email === 'zerodaycops@gmail.com';
-  return isSuper ? profile[0] : null;
-}
 
 export async function GET(
   req: NextRequest,
@@ -34,8 +21,8 @@ export async function GET(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const adminProfile = await checkAdminPrivilege(clerkUserId);
-  if (!adminProfile) {
+  const adminProfile = await getAdminProfile(clerkUserId);
+  if (!adminProfile || !adminProfile.isAdmin) {
     return NextResponse.json({ error: 'Permission denied. Founder account required.' }, { status: 403 });
   }
 
@@ -60,8 +47,8 @@ export async function POST(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const adminProfile = await checkAdminPrivilege(clerkUserId);
-  if (!adminProfile) {
+  const adminProfile = await getAdminProfile(clerkUserId);
+  if (!adminProfile || !adminProfile.isAdmin) {
     return NextResponse.json({ error: 'Permission denied. Founder account required.' }, { status: 403 });
   }
 

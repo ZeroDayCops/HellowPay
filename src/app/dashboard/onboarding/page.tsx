@@ -142,21 +142,27 @@ export default function OnboardingPage() {
     setLoading(true);
     setError(null);
 
-    const result = await submitOnboarding(formData);
+    try {
+      const result = await submitOnboarding(formData);
 
-    if (result.success) {
-      const successResult = result as { testPublishableKey: string; testSecretKey: string };
-      setApiKeys({
-        publishableKey: successResult.testPublishableKey || '',
-        secretKey: successResult.testSecretKey || '',
-      });
-      // Move to Step 6 (API Credentials display)
-      setCurrentStep(6);
-    } else {
-      const errorResult = result as { error: string };
-      setError(errorResult.error || 'Failed to submit onboarding details.');
+      if (result.success) {
+        const successResult = result as { testPublishableKey: string; testSecretKey: string };
+        setApiKeys({
+          publishableKey: successResult.testPublishableKey || '',
+          secretKey: successResult.testSecretKey || '',
+        });
+        // Move to Step 6 (API Credentials display)
+        setCurrentStep(6);
+      } else {
+        const errorResult = result as { error: string };
+        setError(errorResult.error || 'Failed to submit onboarding details.');
+      }
+    } catch (err: any) {
+      console.error('Onboarding submission crashed:', err);
+      setError(err?.message || 'An unexpected error occurred during submission.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const copyToClipboard = (text: string, type: 'pub' | 'sec') => {

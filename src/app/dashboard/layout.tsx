@@ -9,6 +9,7 @@ import { EnvironmentSelector } from '@/components/dashboard/environment-selector
 import { DynamicEnvironmentBadge } from '@/components/dashboard/dynamic-badge';
 import { MobileNav } from '@/components/dashboard/mobile-nav';
 import { NotificationBell } from '@/components/dashboard/notification-bell';
+import { CommandPalette } from '@/components/dashboard/command-palette';
 
 export const metadata: Metadata = {
   title: {
@@ -33,6 +34,8 @@ const devItems = [
   { label: 'API Logs', href: '/dashboard/developers/api-logs', icon: '📝' },
   { label: 'Audit Logs', href: '/dashboard/developers/audit-logs', icon: '🛡️' },
   { label: 'Risk & Fraud', href: '/dashboard/developers/risk-events', icon: '🚨' },
+  { label: 'Diagnostics', href: '/dashboard/developers/diagnostics', icon: '🛡️' },
+  { label: 'API Playground', href: '/dashboard/developers/playground', icon: '💻' },
   { label: 'Documentation', href: '/docs', icon: '📖' },
 ];
 
@@ -133,6 +136,7 @@ export default function DashboardLayout({
               <MobileNav />
             </div>
             <div className={styles.topBarRight} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <CommandPalette />
               <NotificationBell />
               <DynamicEnvironmentBadge />
             </div>
