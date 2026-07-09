@@ -123,6 +123,43 @@ export default function CheckoutView({
     }
   };
 
+  // Poll session status when in 'verifying' step
+  useEffect(() => {
+    if (step !== 'verifying') return;
+
+    let intervalId: NodeJS.Timeout;
+    let attempts = 0;
+
+    const checkStatus = async () => {
+      try {
+        const res = await fetch(`/api/v1/checkout-sessions/${session.publicId}/claim`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === 'completed') {
+            signal('checkout:payment_confirmed', { sessionId: session.publicId });
+            setStep('success');
+            clearInterval(intervalId);
+          } else if (data.status === 'cancelled') {
+            setStep('rejected');
+            clearInterval(intervalId);
+          }
+        }
+      } catch (err) {
+        console.error('Error polling status:', err);
+      }
+
+      attempts++;
+      if (attempts > 120) { // Timeout after 6 minutes
+        clearInterval(intervalId);
+      }
+    };
+
+    checkStatus();
+    intervalId = setInterval(checkStatus, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [step, session.publicId]);
+
   // Submit payment UTR claim reference
   const handleClaimSubmit = async () => {
     if (!claimedReference.trim() || claimedReference.trim().length < 8) {
@@ -156,7 +193,12 @@ export default function CheckoutView({
         hasScreenshot: !!screenshotKey,
       });
 
-      setStep('verifying');
+      if (data.status === 'confirmed') {
+        signal('checkout:payment_confirmed', { sessionId: session.publicId });
+        setStep('success');
+      } else {
+        setStep('verifying');
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to record transaction claim.');
     } finally {
