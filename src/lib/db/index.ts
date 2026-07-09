@@ -7,8 +7,8 @@
 
 import { Client } from 'pg';
 import { drizzle as drizzlePg } from 'drizzle-orm/node-postgres';
-import { neon } from '@neondatabase/serverless';
-import { drizzle as drizzleNeon } from 'drizzle-orm/neon-http';
+import { Pool } from '@neondatabase/serverless';
+import { drizzle as drizzleNeon } from 'drizzle-orm/neon-serverless';
 import * as schema from './schema';
 
 const dbUrl = process.env.DATABASE_URL;
@@ -30,8 +30,8 @@ function createDbClient() {
     client.connect();
     return drizzlePg(client, { schema });
   } else {
-    const sql = neon(url);
-    return drizzleNeon(sql, { schema });
+    const pool = new Pool({ connectionString: url });
+    return drizzleNeon(pool, { schema });
   }
 }
 
