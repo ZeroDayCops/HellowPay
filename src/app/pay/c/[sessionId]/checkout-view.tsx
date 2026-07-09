@@ -160,6 +160,16 @@ export default function CheckoutView({
     return () => clearInterval(intervalId);
   }, [step, session.publicId]);
 
+  // Auto-redirect to merchant on success
+  useEffect(() => {
+    if (step === 'success' && session.successUrl) {
+      const timer = setTimeout(() => {
+        window.location.href = session.successUrl;
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [step, session.successUrl]);
+
   // Submit payment UTR claim reference
   const handleClaimSubmit = async () => {
     if (!claimedReference.trim() || claimedReference.trim().length < 8) {
