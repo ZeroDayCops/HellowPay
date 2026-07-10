@@ -1,121 +1,146 @@
-# HollowPay
+# HollowPay ⚡
 
-**Our fee? Hollow.**
-
-Payment experiences without the platform fee. An open-source, multi-tenant payment experience and automation platform by [ZeroDayCops](https://zerodaycops.in).
+> **Our fee? Hollow.**
+> High-fidelity, zero-fee UPI payment aggregator, checkout orchestration, and compliance telemetry platform. Built by [ZeroDayCops](https://zerodaycops.in).
 
 ---
 
-## What HollowPay Is
+## 📖 Table of Contents
+- [Overview](#overview)
+- [Key Features](#key-features)
+- [System Architecture](#system-architecture)
+- [Payment & Compliance Telemetry](#payment--compliance-telemetry)
+- [Tech Stack](#tech-stack)
+- [Local Development & Setup](#local-development--setup)
+- [API & Integration Reference](#api--integration-reference)
+- [Security Charter](#security-charter)
+- [License](#license)
 
-HollowPay is a software, API, checkout, automation, and records layer for accepting payments. It provides:
+---
 
-- **Hosted Checkout** — A beautiful, mobile-first payment experience
-- **REST API** — Integrate payments into any website
-- **Payment Pages** — Accept payments without writing code
-- **Merchant Dashboard** — Track orders, payments, and analytics
-- **Webhook System** — Real-time signed payment notifications
-- **Test Mode** — Full simulation environment for development
-- **₹0 Platform Fee** — Zero HollowPay platform charges
+## 🎯 Overview
 
-### V1 Payment Flow
+HollowPay is an open-source, multi-tenant hosted checkout and payment records layer designed for modern web apps. It facilitates zero-trust direct-to-merchant UPI payment flows without charging a platform fee. It coordinates checkout sessions, captures UTR reference proofs, tracks fraud collisions, and manages secure webhook dispatches.
 
+---
+
+## ✨ Key Features
+
+- 📱 **Hosted Checkout Screen** — High-fidelity, mobile-first payment UI with dynamic QR codes.
+- ⚙️ **Developer REST API** — Integrate payment flows into any custom website in minutes.
+- 📦 **API Usage Telemetry & Logs** — Real-time request log monitoring, key rotation, and rate telemetry.
+- 🔐 **Secure Key Rotation & Webhooks** — Webhook delivery retry loops with HMAC-SHA256 signature verification.
+- 🕰️ **Abandoned Checkout Expiry** — Automatic background workers to clean up stale or unpaid sessions.
+- 🛡️ **Risk & Fraud Collisions Monitoring** — Automated verification flags for double UTR claims and suspicious behaviors.
+- 🏢 **Multi-Tenant Workspace** — Support for multiple merchant accounts, project environments, and developers.
+
+---
+
+## 🏗️ System Architecture
+
+HollowPay functions as a stateless coordination layer. Funds flow directly from the customer's UPI app to the merchant's UPI address.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Customer as Customer
+    participant YourSite as Merchant Website
+    participant HP as HollowPay Gateway
+    
+    Customer->>YourSite: Clicks "Pay Now"
+    YourSite->>HP: POST /api/v1/orders (Create Order)
+    HP-->>YourSite: Returns order ID (ord_hp_...)
+    YourSite->>HP: POST /api/v1/checkout-sessions (Create Session)
+    HP-->>YourSite: Returns checkout URL
+    YourSite-->>Customer: Redirect to HollowPay Checkout Page
+    Customer->>HP: Scan QR code, input UTR & upload receipt
+    HP->>YourSite: Send Webhook trigger (checkout.session.completed)
+    YourSite-->>Customer: Deliver digital goods/access
 ```
-Customer → Direct UPI Payment → Merchant's Own Payment Destination
-```
 
-HollowPay orchestrates the experience. The money goes directly to the merchant.
+---
 
-## What HollowPay Is NOT
+## 📊 Payment & Compliance Telemetry
 
-- **Not a payment processor** — HollowPay does not process card payments or hold funds
-- **Not a bank** — No RBI or NPCI authorization is claimed
-- **Not a settlement service** — No funds are held, settled, or transferred
-- **Not a Razorpay/Stripe clone** — Different architecture, different model
+Unlike traditional payment pipelines, HollowPay uses an asynchronous compliance model to confirm UPI transactions:
+1. **Initiation**: The customer initiates a payment scan.
+2. **Claim Submission**: The customer uploads the payment receipt and inputs the 12-digit UPI UTR.
+3. **Collision Detection**: HollowPay automatically flags if the UTR was used previously (fraud mitigation).
+4. **Merchant Verification**: The merchant confirms receipt of funds in their bank account.
+5. **Settlement**: A permanent, immutable ledger transaction is created.
 
-## Payment Confirmation Model
+---
 
-HollowPay V1 uses **merchant-confirmed payments**:
+## 💻 Tech Stack
 
-1. Customer initiates payment (UPI)
-2. Customer submits a payment claim with transaction reference
-3. Payment enters `confirmation_pending` state
-4. Merchant independently verifies the payment in their banking records
-5. Merchant explicitly confirms or rejects
-6. Only merchant confirmation creates a finalized transaction
+- **Framework:** Next.js 16 (App Router)
+- **Database:** Neon Serverless PostgreSQL
+- **ORM:** Drizzle ORM
+- **Auth Guard:** Clerk (Multi-Tenant Organization support)
+- **Object Storage:** Cloudflare R2 (S3-compatible)
+- **Deployment:** Vercel
 
-**No action by the customer alone constitutes payment proof.** Not clicking "Pay", not scanning a QR code, not submitting a reference number.
+---
 
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Framework | Next.js 16 (App Router) |
-| Language | TypeScript (strict) |
-| Database | Neon PostgreSQL |
-| ORM | Drizzle ORM |
-| Auth | Clerk |
-| Storage | Cloudflare R2 |
-| Hosting | Vercel |
-
-## Local Development
+## 🚀 Local Development & Setup
 
 ### Prerequisites
-
 - Node.js 20+
 - npm 10+
-- A Neon PostgreSQL database
-- A Clerk application
-- (Optional) Cloudflare R2 bucket
+- A Neon PostgreSQL database instance
+- A Clerk Developer Account
 
-### Setup
+### Setup Instructions
+1. **Clone the Repository:**
+   ```bash
+   git clone https://github.com/ZeroDayCops/HollowPay.git
+   cd HollowPay
+   ```
 
-```bash
-# Clone the repository
-git clone https://github.com/ZeroDayCops/HollowPay.git
-cd HollowPay
+2. **Install Dependencies:**
+   ```bash
+   npm install
+   ```
 
-# Install dependencies
-npm install
+3. **Configure Environment Variables:**
+   Copy `.env.example` to `.env.local` and insert your credentials:
+   ```bash
+   cp .env.example .env.local
+   ```
 
-# Copy environment variables
-cp .env.example .env.local
-# Fill in your actual values in .env.local
+4. **Sync Schema & Seed DB:**
+   Push database schemas and populate standard tables:
+   ```bash
+   npx drizzle-kit push
+   npm run seed
+   ```
 
-# Run database migrations
-npx drizzle-kit push
-
-# Start development server
-npm run dev
-```
-
-The app will be available at `http://localhost:3000`.
-
-### Test Mode
-
-Every project starts in Test Mode. Test Mode:
-
-- Moves no real money
-- Uses a payment simulator
-- Creates test events and webhooks
-- Generates test-prefixed IDs (`ord_hp_test_...`)
-
-Live Mode requires admin approval.
-
-## Security Reporting
-
-If you discover a security vulnerability, please report it responsibly. See [SECURITY.md](./SECURITY.md).
-
-## Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
-
-## License
-
-License pending founder decision. See [LICENSE](./LICENSE).
+5. **Start Dev Server:**
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000) to view the developer dashboard.
 
 ---
 
-**HollowPay** — by [ZeroDayCops](https://zerodaycops.in)
+## 📖 API & Integration Reference
 
-*Payment experiences without the platform fee.*
+For detailed backend integration guidelines, payload samples, and webhook validation code snippets, consult our **[Developer Integration Guide (INTEGRATION.md)](./INTEGRATION.md)**.
+
+---
+
+## 🛡️ Security Charter
+
+HollowPay takes security seriously:
+- Webhooks are securely signed using HMAC-SHA256 signature hashes.
+- Absolute isolation between Live Mode and Test Mode keys.
+- Automatic session timeouts to clear abandoned checkouts.
+
+If you identify a security issue, please email `security@zerodaycops.in` or read our [Security Policy](./SECURITY.md).
+
+---
+
+## 📄 License
+
+HollowPay is open-source software by [ZeroDayCops](https://zerodaycops.in). License pending final decision.
+
