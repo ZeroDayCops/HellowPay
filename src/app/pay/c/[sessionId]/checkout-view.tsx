@@ -155,7 +155,7 @@ export default function CheckoutView({
     };
 
     checkStatus();
-    intervalId = setInterval(checkStatus, 3000);
+    intervalId = setInterval(checkStatus, 1500);
 
     return () => clearInterval(intervalId);
   }, [step, session.publicId]);
@@ -453,23 +453,28 @@ export default function CheckoutView({
             STEP 3: WAITING FOR VERIFICATION
             ============================================================ */}
         {step === 'verifying' && (
-          <div className={`${styles.viewContent} text-center`}>
-            <div className={styles.loaderContainer}>
-              <div className={styles.spinLoader}></div>
+          <div className={`${styles.viewContent} text-center py-4`}>
+            <div className="relative inline-flex items-center justify-center my-4">
+              <div className="w-16 h-16 rounded-full border-2 border-indigo-500/30 border-t-indigo-400 animate-spin"></div>
+              <div className="absolute inset-0 rounded-full bg-indigo-500/10 animate-ping pointer-events-none"></div>
+              <div className="absolute font-mono text-[10px] text-indigo-300 font-bold uppercase tracking-wider">LIVE</div>
             </div>
-            <h3 className="h4 mt-6">Verifying your transaction</h3>
-            <p className="body-sm opacity-85 mt-2">
-              We have received your claim with reference <strong>{claimedReference}</strong>.
+            <h3 className="h4 mt-4 font-bold text-slate-100">Verifying Transaction Claim</h3>
+            <p className="body-sm text-slate-300 mt-2">
+              Claim Registered: <strong className="font-mono text-indigo-400">{claimedReference}</strong>
             </p>
-            <p className="body-xs opacity-75 mt-1">
-              Your payment destination is direct. We are verifying credentials with <strong>{business.name}</strong>. This usually resolves in a few minutes.
+            <p className="body-xs text-slate-400 mt-1 max-w-sm mx-auto">
+              Connecting directly with <strong>{business.name}</strong> security system. High-speed polling cycle active (1.5s interval).
             </p>
 
-            <div className={styles.noticeBox}>
-              <p className="caption text-left font-semibold">Verification instructions:</p>
-              <ul className="body-xs text-left mt-2 flex flex-col gap-1" style={{ listStyleType: 'disc', paddingLeft: 'var(--space-4)' }}>
-                <li>Do not close or reload this window.</li>
-                <li>Your order will complete automatically once confirmed.</li>
+            <div className={`${styles.noticeBox} border border-indigo-500/20 bg-indigo-950/20 rounded-xl p-4 mt-6 text-left`}>
+              <p className="caption font-mono text-indigo-300 font-bold uppercase tracking-wider flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                Fast Verification active
+              </p>
+              <ul className="body-xs text-slate-300 mt-2 flex flex-col gap-1.5 list-disc pl-5">
+                <li>Please keep this window open while verification proceeds.</li>
+                <li>Your subscription plan will activate automatically upon receipt validation.</li>
               </ul>
             </div>
           </div>
