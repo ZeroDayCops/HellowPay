@@ -72,26 +72,73 @@ const handleSubmitClaim = async (
       screenshotKey: body.screenshot_key,
     });
 
-    // 2. Auto-approve the payment claim instantly (auto-system)
-    const confirmResult = await confirmPaymentClaim(
-      session.projectId,
-      session.environment as 'test' | 'live',
-      result.claim.publicId,
-      'auto-system'
-    );
+    // 2. Only auto-approve payment claims if explicitly running in test mode
+    const isTestMode = session.environment === 'test';
 
-    // 3. Dispatch events & audit logs outside transaction context
+    if (isTestMode) {
+      const confirmResult = await confirmPaymentClaim(
+        session.projectId,
+        session.environment as 'test' | 'live',
+        result.claim.publicId,
+        'auto-system'
+      );
+
+      // 3. Dispatch events & audit logs outside transaction context
+      await triggerEvent({
+        type: 'payment.confirmed',
+        projectId: session.projectId,
+        environment: session.environment as 'test' | 'live',
+        data: {
+          transaction_id: confirmResult.txn.publicId,
+          order_id: confirmResult.orderPublicId,
+          checkout_session_id: publicId,
+          amount: confirmResult.txn.amountMinor,
+          currency: confirmResult.txn.currency,
+          claimed_reference: confirmResult.claim.claimedReference,
+        },
+      });
+
+      await createAuditLog({
+        action: 'payment.claim.submit',
+        targetType: 'payment_claim',
+        targetId: result.claim.publicId,
+        workspaceId: result.workspaceId,
+        metadata: {
+          claimed_reference: result.claim.claimedReference,
+          auto_approved: true,
+        },
+      });
+
+      await sendMerchantNotification(
+        session.projectId,
+        'claim.created',
+        'New payment claim received & auto-approved (Test Mode)',
+        `A test payment claim was auto-approved (UTR: ${body.claimed_reference}).`,
+        `/dashboard/claims/${result.claim.publicId}`
+      );
+
+      // 4. Format response in snake_case (return confirmed status for test mode)
+      return NextResponse.json({
+        id: result.claim.publicId,
+        checkout_session_id: publicId,
+        payment_attempt_id: result.attempt.publicId,
+        claimed_reference: result.claim.claimedReference,
+        screenshot_key: result.claim.screenshotObjectKey,
+        status: 'confirmed',
+        claimed_at: result.claim.claimedAt.toISOString(),
+        created_at: result.claim.createdAt.toISOString(),
+      }, { status: 201 });
+    }
+
+    // Live Environment: Keep claim in 'pending' status for manual/automated bank statement verification
     await triggerEvent({
-      type: 'payment.confirmed',
+      type: 'payment.claim_submitted',
       projectId: session.projectId,
       environment: session.environment as 'test' | 'live',
       data: {
-        transaction_id: confirmResult.txn.publicId,
-        order_id: confirmResult.orderPublicId,
         checkout_session_id: publicId,
-        amount: confirmResult.txn.amountMinor,
-        currency: confirmResult.txn.currency,
-        claimed_reference: confirmResult.claim.claimedReference,
+        claimed_reference: result.claim.claimedReference,
+        status: 'pending',
       },
     });
 
@@ -102,26 +149,25 @@ const handleSubmitClaim = async (
       workspaceId: result.workspaceId,
       metadata: {
         claimed_reference: result.claim.claimedReference,
-        auto_approved: true,
+        auto_approved: false,
       },
     });
 
     await sendMerchantNotification(
       session.projectId,
       'claim.created',
-      'New payment claim received & auto-approved',
-      `A new payment claim was auto-approved (UTR: ${body.claimed_reference}).`,
+      'New payment claim received — Pending Verification',
+      `A new payment claim was submitted and requires merchant verification (UTR: ${body.claimed_reference}).`,
       `/dashboard/claims/${result.claim.publicId}`
     );
 
-    // 4. Format response in snake_case (return confirmed status)
     return NextResponse.json({
       id: result.claim.publicId,
       checkout_session_id: publicId,
       payment_attempt_id: result.attempt.publicId,
       claimed_reference: result.claim.claimedReference,
       screenshot_key: result.claim.screenshotObjectKey,
-      status: 'confirmed',
+      status: 'pending',
       claimed_at: result.claim.claimedAt.toISOString(),
       created_at: result.claim.createdAt.toISOString(),
     }, { status: 201 });
